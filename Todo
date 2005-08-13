@@ -1,5 +1,44 @@
 TODO list for Perl module Text::Editor::Vip
+===========================================
 
-- Nothing yet
 
+* Backspace with argument > 1 not handled efficiently (at all!)
 
+# Change all so script to OO style
+
+#ClearLine doesn't handle modificaton position properly
+	=> well it did
+	
+#GetText() should return an array when called in array context
+
+* SetSelection must handle the do/undo stack
+
+* I haven't decided yet how to handle erroneous arguments. Croak, Call a user 
+	defined function, ignore and log, return error codes !!!
+	=> log the call stack when dying
+	
+# should it be possible to handle the selection directly
+	Yes
+	
+# When an error occures, PrintError is called. That sub doesn't exist and must 
+	be set by the buffer creator.
+
+# return an object in a unique package
+
+* Remove reset sub ?
+
+* Should we undo if Do dies?
+
+* use Log4Perl to log stuff
+
+* Add a Set command, in a plugin, that handles the undo stack properly
+
+# move tab related functinos in a plugin
+
+* Put the different types of indenters in a module
+	=> Text::Editor::Vip::Plugins::Indenters
+
+* more tests, some are listed as comments
+	test plugins
+
+* document plugins

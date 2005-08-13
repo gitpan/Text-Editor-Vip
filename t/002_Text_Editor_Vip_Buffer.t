@@ -1,0 +1,559 @@
+# -*- perl -*-
+
+# t/002_load.t - check module loading and create testing directory
+# proudly stole some tests from Text::Buffer
+
+use Data::TreeDumper ;
+use Data::Hexdumper ;
+use Text::Diff ;
+
+use strict ;
+my $text = '' ;
+
+use Test::More tests => 164 ;
+
+BEGIN 
+{
+use_ok('Text::Editor::Vip::Buffer'); 
+use_ok('Text::Editor::Vip::Buffer::Test'); 
+}
+
+#------------------------------------------------------------------------------------------------- 
+# Empty buffer tests
+
+my $buffer = Text::Editor::Vip::Buffer->new();
+isa_ok($buffer, 'Text::Editor::Vip::Buffer');
+
+is($buffer->GetNumberOfLines(), 1, 'empty line count') ;
+is($buffer->GetModificationLine(), 0, 'line pos is 0' ) ;
+is($buffer->GetText(), '', 'new buffer is empty' ) ;
+is($buffer->IsBufferMarkedAsEdited(), 0, 'buffer not marked as edited') ;
+
+$buffer->MarkBufferAsEdited() ;
+is($buffer->IsBufferMarkedAsEdited(), 1, 'buffer marked as edited') ;
+
+$buffer->MarkBufferAsUnedited() ;
+is($buffer->IsBufferMarkedAsEdited(), 0, 'buffer not marked as edited') ;
+
+#------------------------------------------------------------------------------------------------- 
+# ExpandWith
+
+$buffer = Text::Editor::Vip::Buffer->new();
+
+eval {$buffer->PrintError("should die") ;} ;
+ok($@, 'Default method dies') ;
+
+my $redefined_sub_output = '' ;
+my $expected_output = 'Redefined PrintError is working' ;
+$buffer->ExpandWith('PrintError', sub {$redefined_sub_output = $_[1]}) ;
+$buffer->PrintError($expected_output) ;
+is($@, '', 'Calling added method') ;
+is($redefined_sub_output , $expected_output, 'Calling added method') ;
+
+# indenter
+sub my_indenter
+	{
+	# modification position is set at the new line 
+	
+	my $this = shift ; # the buffer
+	my $line_index = shift ; # usefull if we indent depending on previous lines
+	
+	my $undo_block = new Text::Editor::Vip::CommandBlock($this, "IndentNewLine(\$buffer, $line_index) ;", '   #', '# undo for IndentNewLine() ;', '   ') ;
+	$this->Insert('   ') ;  # some silly indentation
+	$this->MarkBufferAsEdited() ;
+	}
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->ExpandWith('IndentNewLine', \&my_indenter) ;
+$buffer->Insert("hi\nThere\nWhats\nYour\nName\n") ;
+is($buffer->GetLineText(1), "   There", "Same text") ;
+
+#------------------------------------------------------------------------------------------------- 
+# Position
+$buffer = Text::Editor::Vip::Buffer->new();
+
+is($buffer->GetModificationLine(), 0, 'line pos is 0' ) ;
+is($buffer->GetModificationCharacter(), 0, 'char pos is 0' ) ;
+
+my ($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 0 && $character == 0, 'position is OK' ) ;
+
+$buffer->Insert('Bar') ;
+is($buffer->GetModificationLine(), 0, 'line pos is 0' ) ;
+is($buffer->GetModificationCharacter(), 3, 'char pos is 3' ) ;
+
+($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 0 && $character == 3, 'position is OK' ) ;
+
+$buffer->Insert("\nBaz\nFoo\n\n") ;
+$buffer->SetModificationPosition(2, 2) ;
+($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 2 && $character == 2, 'position is OK' ) ;
+
+$buffer->SetModificationPosition(2, 500) ;
+($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 2 && $character == 500, 'position is OK' ) ;
+
+eval{$buffer->SetModificationPosition(10, 0) ;} ;
+ok($@, 'SetModificationPosition died') ;
+
+#------------------------------------------------------------------------------------------------- 
+# Backspace
+$buffer = Text::Editor::Vip::Buffer->new();
+
+$buffer->Insert("Line 1\nLine 2") ;
+$buffer->SetModificationPosition(0, 0) ;
+$buffer->Backspace(1) ;
+is($buffer->GetText(), "Line 1\nLine 2", "Same text") ;
+
+$buffer->SetModificationPosition(0, 1) ;
+$buffer->Backspace(1) ;
+is($buffer->GetText(), "ine 1\nLine 2", "Same text") ;
+
+$buffer->SetModificationPosition(0, 1) ;
+$buffer->Backspace(5) ;
+is($buffer->GetText(), "ne 1\nLine 2", "Same text") ;
+
+$buffer->SetModificationPosition(1, 0) ;
+$buffer->Backspace(1) ;
+is($buffer->GetText(), "ne 1Line 2", "Same text") ;
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("AAAAX1 - 1\nBBBB 2 - 2 2") ;
+
+$buffer->SetModificationPosition(1, 0) ;
+$buffer->Backspace(1) ;
+is($buffer->GetText(), "AAAAX1 - 1BBBB 2 - 2 2", "Backspace") ;
+
+$buffer->Backspace(1) ;
+is($buffer->GetText(), "AAAAX1 - BBBB 2 - 2 2", "Backspace") ;
+
+#------------------------------------------------------------------------------------------------- 
+# GetLineText 
+$buffer = Text::Editor::Vip::Buffer->new(); 
+
+$buffer->Insert(<<EOT) ;
+line 1 - 1
+line 2 - 2 2
+line 3 - 3 3 3
+line 4 - 4 4 4 4
+line 5 - 5 5 5 5 5
+EOT
+
+is($buffer->GetLineText(3), 'line 4 - 4 4 4 4', 'Getting a specific line') ;
+
+$buffer->SetModificationLine(4) ;
+is($buffer->GetLineText(), 'line 5 - 5 5 5 5 5', 'Getting a specific line') ;
+
+# set an erroneous modification line which 
+eval{$buffer->SetModificationLine(10) ; } ; # this calls PrintError which dies 
+ok($@, 'PrintError died') ;
+
+# the modification line didn't change
+is($buffer->GetLineText(), 'line 5 - 5 5 5 5 5', 'Getting the current line') ;
+
+#------------------------------------------------------------------------------------------------- 
+# GetLineLenght
+
+is($buffer->GetLineLength(3), length('line 4 - 4 4 4 4'), 'Getting a specific line length') ;
+
+$buffer->SetModificationLine(4) ;
+is($buffer->GetLineLength(), length('line 5 - 5 5 5 5 5'), 'Getting a specific line') ;
+
+# set an erroneous modification line which 
+eval{$buffer->SetModificationLine(10) ; } ; # this calls PrintError which dies 
+ok($@, 'PrintError died') ;
+
+# the modification line didn't change
+is($buffer->GetLineLength(), length('line 5 - 5 5 5 5 5'), 'Getting the current line') ;
+
+eval { $buffer->GetLineLength(10) ; } ;
+ok($@, 'PrintError died') ;
+
+#------------------------------------------------------------------------------------------------- 
+# ClearLine
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("Line 1\nLine 2") ;
+
+$buffer->ClearLine(0) ;
+is($buffer->GetLineLength(0), 0, 'Clearing a specific line') ;
+
+
+$buffer->SetModificationLine(1) ;
+$buffer->ClearLine() ;
+is($buffer->GetLineLength(), 0, 'Clearing the modification line') ;
+
+eval { $buffer->ClearLine(10) ; } ;
+ok($@, 'PrintError died') ;
+
+# test undo after ClearLine
+is(TestDoUndo('$buffer->ClearLine(0) ;', '$buffer->Insert("Line 1\nLine 2") ;'), 1, 'test undo after ClearLine') ;
+is(TestDoUndo('$buffer->ClearLine(1) ;', '$buffer->Insert("Line 1\nLine 2") ;'), 1, 'test undo after ClearLine') ;
+
+#------------------------------------------------------------------------------------------------- 
+#DeleteLine
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
+is($buffer->GetNumberOfLines(), 4, 'right line count before deletion') ;
+
+$buffer->DeleteLine(0) ;
+is($buffer->GetNumberOfLines(), 3, 'right line count after first deletion') ;
+is($buffer->GetLineText(0), 'Line 2', 'right line text after first deletion') ;
+
+$buffer->SetModificationLine(1) ;
+$buffer->DeleteLine() ;
+is($buffer->GetNumberOfLines(), 2, 'right line count after third deletion') ;
+is($buffer->GetLineText(), 'Line 4', 'right line text after thirddeletion') ;
+
+eval { $buffer->DeleteLine(10) ; } ;
+ok($@, 'PrintError died') ;
+
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
+$buffer->DeleteLine(3) ;
+is($buffer->GetNumberOfLines(), 3, 'right line count after last line deletion') ;
+
+# test undo after DeleteLine
+is(TestDoUndo('$buffer->DeleteLine(0) ;', '$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;'), 1, 'test undo after DeleteLine') ;
+is(TestDoUndo('$buffer->DeleteLine(3) ;', '$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;'), 1, 'test undo after DeleteLine') ;
+
+#------------------------------------------------------------------------------------------------- 
+#Delete
+#------------------------------------------------------------------------------------------------- 
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
+$buffer->SetModificationPosition(0, 0) ;
+
+my $do_buffer = $buffer->GetDoBuffer() ;
+
+$buffer->Delete(2) ;
+is($buffer->GetNumberOfLines(), 4, 'right line count') ;
+is($buffer->GetLineText(0), 'ne 1', 'right line text') ;
+
+is(TestDoUndo('$buffer->Delete(2) ;', $do_buffer), 1, 'test undo after Delete') ;
+#----
+
+$do_buffer = $buffer->GetDoBuffer() ; # include the deletion above
+
+$buffer->Delete(4) ;
+is($buffer->GetNumberOfLines(), 4, 'right line count') ;
+is($buffer->GetLineText(0), '', 'right line text') ;
+
+is(TestDoUndo('$buffer->Delete(4) ;', $do_buffer), 1, 'test undo after Delete') ;
+
+#----
+
+# Delete at end of line
+$do_buffer = $buffer->GetDoBuffer() ; # include the deletion above
+
+$buffer->Delete(1) ;
+is($buffer->GetNumberOfLines(), 3, 'right line count') ;
+is($buffer->GetLineText(0), 'Line 2', 'right line text') ;
+
+is(TestDoUndo('$buffer->Delete(1) ;', $do_buffer), 1, 'test undo after Delete') ;
+
+#----
+
+$buffer->SetModificationPosition(0, $buffer->GetLineLength(0)) ;
+$do_buffer = $buffer->GetDoBuffer() ; # include the deletion above
+
+$buffer->Delete(1) ;
+is($buffer->GetNumberOfLines(), 2, 'right line count') ;
+is($buffer->GetLineText(0), 'Line 2Line 3', 'right line text') ;
+
+is(TestDoUndo('$buffer->Delete(1) ;', $do_buffer), 1, 'test undo after Delete') ;
+
+#----
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
+$buffer->SetModificationPosition(0, $buffer->GetLineLength(0) + 2) ;
+
+$do_buffer = $buffer->GetDoBuffer() ;
+
+$buffer->Delete(1) ;
+is($buffer->GetNumberOfLines(), 3, 'right line count') ;
+is($buffer->GetLineText(0), 'Line 1  Line 2', 'right line text') ;
+
+is(TestDoUndo('$buffer->Delete(1) ;', $do_buffer), 1, 'test undo after Delete') ;
+
+#----------------------------------------------------------------------------------
+# insert
+$buffer = Text::Editor::Vip::Buffer->new();
+
+$buffer->Insert("bar") ;
+is($buffer->GetLineLength(), 3, 'Line length is correct') ;
+is($buffer->IsBufferMarkedAsEdited(), 1, 'buffer marked as edited') ;
+is($buffer->GetNumberOfLines(), 1, 'correct line count after insert' ) ;
+
+is($buffer->GetText(), "bar", 'buffer contains \'bar\'' ) ;
+is(ref($buffer->GetTextAsArrayRef()), 'ARRAY', 'returned an array ref' ) ;
+is(scalar(@{$buffer->GetTextAsArrayRef()}), 1, 'has one line' ) ;
+is($buffer->GetTextAsArrayRef()->[0], 'bar', 'bar is the content' ) ;
+
+$buffer->Backspace(1) ;
+is($buffer->GetNumberOfLines(), 1, 'correct line count after Backspace' ) ;
+is($buffer->GetModificationLine(), 0, 'line is 0' ) ;
+is($buffer->GetModificationPosition(), 2, 'line pos is 2' ) ;
+is($buffer->GetText(), "ba", 'buffer contains \'bar\'' ) ;
+
+$buffer->Insert("\nFoo") ;
+is($buffer->GetNumberOfLines(), 2, 'correct line count after Insert' ) ;
+is($buffer->GetModificationLine(), 1, 'line is 1' ) ;
+is($buffer->GetModificationPosition(), 3, 'line pos is 3' ) ;
+is($buffer->GetText(), "ba\nFoo", 'buffer contains \'ba\nFoo\'' ) ;
+
+$buffer->Reset() ;
+is($buffer->GetNumberOfLines(), 1, 'empty line count') ;
+is($buffer->GetModificationLine(), 0, 'line pos is 0' ) ;
+is($buffer->GetText(), '', 'new buffer is empty' ) ;
+
+# still works after Reset?
+$buffer->Insert("bar") ;
+is($buffer->GetNumberOfLines(), 1, 'correct line count after insert' ) ;
+is($buffer->GetModificationLine(), 0, 'line pos is 0' ) ;
+is($buffer->GetModificationPosition(), 3, 'char pos is 3' ) ;
+is($buffer->GetText(), "bar", 'buffer contains \'bar\'' ) ;
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("noone\nwants\nme\n");
+is($buffer->GetNumberOfLines(), 4, 'correct line count after insert' ) ;
+is($buffer->GetModificationLine(), 3, 'line pos is 3' ) ;
+is($buffer->GetModificationPosition(), 0, 'char pos is 0' ) ;
+
+# insert array
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert(["Someone\n", "wants me\nNow"]);
+is($buffer->GetLineLength(1), 8, 'Line length is correct') ;
+is($buffer->GetNumberOfLines(), 3, 'correct line count after array insert' ) ;
+is($buffer->GetModificationLine(), 2, 'line pos is 0' ) ;
+is($buffer->GetModificationPosition(), 3, 'line pos is 3' ) ;
+
+# insertion after end of line
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->SetModificationPosition(0,5) ;
+$buffer->Insert("hi\n") ;
+$buffer->Insert("\tthere") ;
+$buffer->Backspace(1) ;
+$buffer->Insert('u') ;
+#~ diag "\n" . hexdump(data => $buffer->GetText()) ;
+is($buffer->GetText(), "     hi\n\ttheru") ;
+
+#------------------------------------------------------------------------------------------------- 
+# serialisation and multipline insertion
+my $buffer_1 = $buffer->new();
+
+isa_ok($buffer_1, 'Text::Editor::Vip::Buffer');
+
+# test $ and @ serialisation
+$buffer_1->Insert('my ($message, $lhb, $rhb) = @_ ;',  1) ;
+is(TestSerialisation($buffer_1), 1, 'test test $ and @ serialisation') ;
+
+# test \n serialisation
+$buffer_1->Reset() ;
+$buffer_1->Insert("\nuse strict ;\nuse warnings ;\n\nuse Data::TreeDumper ;\n", 1) ;
+is(TestSerialisation($buffer_1), 1, 'test \n serialisation') ;
+
+# test long lines
+$buffer_1->Reset() ;
+$buffer_1->Insert("k" x 50_000) ;
+is(TestSerialisation($buffer_1), 1, 'test long serialisation') ;
+
+# test ', " and \t serialisation
+$buffer_1->Reset() ;
+$buffer_1->Insert("#~ \$buffer->Insert(\"\tthere\") ;") ;
+$buffer_1->Insert("#~ \$buffer->Insert(\"\tthere\") ;\n") ;
+$buffer_1->Insert('#~ $buffer->Insert("\tthere") ;') ;
+$buffer_1->Insert('#~ $buffer->Insert("\tthere") ;' . "\n") ;
+$buffer_1->Insert('"\'' . "\n") ;
+$buffer_1->Insert("\"'" . "\n") ;
+is(TestSerialisation($buffer_1), 1, 'test \', " and \t serialisation') ;
+
+$buffer_1->Reset() ;
+$buffer_1->Insert('$buffer_2->Insert("#~ \$buffer->Insert(\"\tthere\") ;") ;') ;
+is(TestSerialisation($buffer_1), 1, '# test serialisation') ;
+
+# test multiline handling
+$buffer_1->Reset() ;
+$buffer_1->Insert(<<EOT) ;
+("#~ \$buffer->Insert(\"\tthere\") ;") ;
+("#~ \$buffer->Insert(\"\tthere\") ;\n") ;
+('#~ $buffer->Insert("\tthere") ;') ;
+('#~ $buffer->Insert("\tthere") ;' . "\n\r") ;
+EOT
+is(TestSerialisation($buffer_1), 1, '# test multiline handling') ;
+
+$buffer_1->Reset() ;
+$text = <<EOT ;
+("#~ \$buffer->Insert(\"\tthere\") ;") ;
+("#~ \$buffer->Insert(\"\tthere\") ;\n") ;
+('#~ $buffer->Insert("\tthere") ;') ;
+('#~ $buffer->Insert("\tthere") ;' . "\n\r") ;
+EOT
+
+$buffer_1->Insert($text) ;
+is($buffer_1->GetText(), $text, 'text is equal') ;
+
+# test miltiline handling, non evaluating
+$buffer_1->Reset() ;
+$buffer_1->Insert(<<'EOT') ;
+$buffer->Insert("#~ \$buffer->Insert(\"\tthere\") ;") ;
+$buffer->Insert("#~ \$buffer->Insert(\"\tthere\") ;\n") ;
+$buffer->Insert('#~ $buffer->Insert("\tthere") ;') ;
+$buffer->Insert('#~ $buffer->Insert("\tthere") ;' . "\n") ;
+EOT
+is(TestSerialisation($buffer_1), 1, 'test miltiline handling, non evaluating') ;
+
+$buffer_1->Reset() ;
+$text = <<'EOT' ;
+$buffer->Insert("#~ \$buffer->Insert(\"\tthere\") ;") ;
+$buffer->Insert("#~ \$buffer->Insert(\"\tthere\") ;\n") ;
+$buffer->Insert('#~ $buffer->Insert("\tthere") ;') ;
+$buffer->Insert('#~ $buffer->Insert("\tthere") ;' . "\n") ;
+EOT
+
+$buffer_1->Insert($text) ;
+is($buffer_1->GetText(), $text, 'text is equal') ;
+
+#------------------------------------------------------------------------------------------------- 
+
+# Test do an undo. We do something in buffer #1, take the do commands from buffer #1 and apply it
+# to buffer #2. The buffer #1 and #2 should be equal. We take the the undo commands from buffer #1
+# and apply it to buffer #2. We then compare buffer #2 with buffer #3 which is blank from actions.
+
+#------------------------------------------------------------------------------------------------- 
+
+$buffer = Text::Editor::Vip::Buffer->new();
+
+# ShutDown PrintError suicidal behaviour
+$buffer->ExpandWith('PrintError', sub {}) ;
+
+my ($result, $message) = $buffer->Do("this should not be valid perl!") ;
+is($result, 0, 'Invalid perl') ;
+
+($result, $message) = $buffer->Do("#this should be valid perl!") ;
+is($result, 1, 'Valid perl') ;
+diag($message) if $result == 0 ;
+
+($result, $message) = $buffer->Do("#this should be valid perl!") ;
+is($result, 1, 'Valid perl') ;
+diag($message) if $result == 0 ;
+
+($result, $message) = $buffer->Do("# comment\n\$buffer->Insert('bar') ;") ;
+is($result, 1, 'Valid perl') ;
+diag($message) if $result == 0 ;
+
+is($buffer->GetText(), "bar", 'buffer contains \'bar\'' ) ;
+
+#------------------------------------------------------------------------------------------------- 
+# test do, file insertion  and undo
+
+my $file = __FILE__ ;
+
+is(TestDoUndo(<<EOS), 1, 'test do and undo after file insertion') ;	
+\$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Plugins::File') ;
+\$buffer->InsertFile('$file') ;
+EOS
+
+#------------------------------------------------------------------------------------------------- 
+#Selection
+
+$buffer = Text::Editor::Vip::Buffer->new();
+
+is($buffer->GetSelection()->IsEmpty(), 1, 'default selection is empty') ;
+
+$buffer->GetSelection()->SetAnchor(5, 5) ;
+$buffer->GetSelection()->SetLine(6, 3) ;
+
+is($buffer->GetSelection()->IsEmpty(), 0, 'selection not empty') ;
+is_deeply([5, 5, 6, 3], [$buffer->GetSelection()->GetBoundaries()], 'selection is as set') ;
+
+
+#------------------------------------------------------------------------------------------------- 
+#DeleteSelection
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("line 1 - 1\nline 2 - 2 2") ;
+
+eval { $buffer->DeleteSelection() ;} ;
+is($@, '', 'DeletedSelection with empty selection didn\'t die') ;
+
+$buffer->GetSelection()->SetAnchor(0, 1) ;
+$buffer->GetSelection()->SetLine(1, 1) ;
+$buffer->DeleteSelection() ;
+is($buffer->GetText(), "line 2 - 2 2", 'DeletedSelection OK') ;
+
+# try with single line selection
+
+# try with outside buffer selection
+
+#~ $buffer->GetSelection()->SetAnchor(5, 5) ;
+#~ $buffer->GetSelection()->SetLine(6, 3) ;
+
+# insert delete selection too
+$do_buffer = <<'EODB' ;
+$buffer->Insert(<<EOT) ;
+AAAAX1 - 1
+BBBB 2 - 2 2
+CCCC 3 - 3X 3 3
+EOT
+
+$buffer->GetSelection()->SetAnchor(0, 4) ;
+$buffer->GetSelection()->SetLine(2, 10) ;
+EODB
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Do($do_buffer) ;
+
+# replace selection with hi
+$buffer->Insert('<inserted>') ;
+is($buffer->GetText(), "AAAA<inserted>X 3 3\n", 'Inserting with selection') ;
+
+# Delete delete selection too
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Do($do_buffer) ;
+$buffer->Delete(1) ;
+is($buffer->GetText(), "AAAAX 3 3\n", 'Deleting with selection') ;
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Do($do_buffer) ;
+$buffer->Delete(2) ;
+is($buffer->GetText(), "AAAA 3 3\n", 'Deleting with selection') ;
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Do($do_buffer) ;
+$buffer->Delete(500) ;
+is($buffer->GetText(), "AAAA", 'Deleting with selection') ;
+
+#Backspace delete selection too
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Do($do_buffer) ;
+$buffer->Backspace(1) ;
+is($buffer->GetText(), "AAAAX 3 3\n", 'Backspacing with selection') ;
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Do($do_buffer) ;
+$buffer->Backspace(2) ;
+is($buffer->GetText(), "AAAX 3 3\n", 'Backspaceing more with selection') ;
+
+#------------------------------------------------------------------------------------------------- 
+#RunSubOnSelection
+
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("line\n" x 10) ;
+$buffer->GetSelection()->SetAnchor(0, 0) ;
+$buffer->GetSelection()->SetLine(10, 0) ;
+
+sub AddTab
+{
+my ($text, $selection_line_index, $modification_character, $original_selection, $buffer) = @_ ;
+
+return("\t$text" );
+}
+
+$buffer->RunSubOnSelection(\&AddTab, sub{die}) ;
+
+is($buffer->GetText, ("\tline\n" x 10) . "\t", "Added tab to selection") ;
+
+

@@ -1,5 +1,5 @@
 
-package Text::Editor::Vip;
+package Text::Editor::Vip::View;
 use strict;
 use warnings ;
 
@@ -7,26 +7,26 @@ BEGIN
 {
 use Exporter ();
 use vars qw ($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION     = '0.01_2';
+$VERSION     = 0.01_1;
 @ISA         = qw (Exporter);
 @EXPORT      = qw ();
 @EXPORT_OK   = qw ();
 %EXPORT_TAGS = ();
 }
 
-
 =head1 NAME
 
-Text::Editor::Vip - Perl Editor
+Text::Editor::Vip::View - Buffer visualisation
 
 =head1 SYNOPSIS
 
-  use Text::Editor::Vip
-  
+  use Text::Editor::Vip::View
 
 =head1 DESCRIPTION
 
-See the README file.
+Stub documentation for this module was created by ExtUtils::ModuleMaker.
+It looks like the author of the extension was negligent enough
+to leave the stub unedited.
 
 =head1 USAGE
 
@@ -36,8 +36,10 @@ See the README file.
 
 =head1 AUTHOR
 
-  Nadim iibn Hamouda El Khemir
-  <nadim@khemir.net>
+	Khemir Nadim ibn Hamouda
+	CPAN ID: NKH
+	mailto:nadim@khemir.net
+	http:// no web site
 
 =head1 COPYRIGHT
 
@@ -47,19 +49,15 @@ it and/or modify it under the same terms as Perl itself.
 The full text of the license can be found in the
 LICENSE file included with this module.
 
-=head1 SEE ALSO
-
-perl(1).
-
 =cut
 
 sub new
 {
-my ($class, %parameters) = @_;
+	my ($class, %parameters) = @_;
 
-my $self = bless ({}, ref ($class) || $class);
+	my $self = bless ({}, ref ($class) || $class);
 
-return ($self);
+	return ($self);
 }
 
 

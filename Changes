@@ -1,6 +1,13 @@
 Revision history for Perl module Text::Editor::Vip
 
-0.01 Tue Jul 26 03:50:21 2005
+0.01_2 Sat Aug 13 2005
+	ADDED: refactored some of my old code into Vip
+	ADDED: a test suite
+	ADDED: undo support
+	Added: plugin functionality
+	ADDED: documentation to the buffer package
+
+0.01_1 Tue Aug  9 19:37:42 2005
 	- original version; created by ExtUtils::ModuleMaker 0.32
 
 

@@ -1,4 +1,3 @@
-
 The goal of the VIP project is to produce a first class Perl editor.
 
 The editor will consist of the core engine and have (at first) 
@@ -15,7 +14,6 @@ working draft within short.
 
 This  project as two member, so far, Nadim Khemir and Kaare Rasmussen but we'd
 like to see more.
-
 
 We can always use help. To test it out, find bugs, propose features and
 write documentation, plugins and code.
