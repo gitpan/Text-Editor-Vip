@@ -8,9 +8,9 @@ use Data::Hexdumper ;
 use Text::Diff ;
 
 use strict ;
-my $text = '' ;
+my ($text, $expected_text) = ('', undef) ;
 
-use Test::More tests => 164 ;
+use Test::More tests => 177 ;
 
 BEGIN 
 {
@@ -69,6 +69,33 @@ $buffer->Insert("hi\nThere\nWhats\nYour\nName\n") ;
 is($buffer->GetLineText(1), "   There", "Same text") ;
 
 #------------------------------------------------------------------------------------------------- 
+# LoadAndExpandWith
+$buffer->Reset() ;
+$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Plugins::Display') ;
+$buffer->SetTabSize(3) ;
+is($buffer->GetTabSize(), 3, 'LoadAndExpandWith suceeded') ;
+
+#------------------------------------------------------------------------------------------------- 
+# ExpandedWithOrLoad
+$buffer = Text::Editor::Vip::Buffer->new();
+eval{$buffer->SomeSub() ;} ;
+isnt($@, '', 'Unknown sub') ;
+
+my $sub_exists = 0 ;
+eval
+{
+$sub_exists = $buffer->ExpandedWithOrLoad('SetTabSize', 'Text::Editor::Vip::Buffer::Plugins::Display') ;
+$buffer->SetTabSize(3) ;
+} ;
+
+is($sub_exists , 0, "sub didn't exist before module loading") ;
+is($@, '', 'Known sub') ;
+
+$buffer->SetTabSize(3) ;
+$sub_exists = $buffer->ExpandedWithOrLoad('SetTabSize', 'Text::Editor::Vip::Buffer::Plugins::Display') ;
+is($sub_exists , 1, "sub existed no loading needed") ;
+
+#------------------------------------------------------------------------------------------------- 
 # Position
 $buffer = Text::Editor::Vip::Buffer->new();
 
@@ -96,6 +123,14 @@ ok($line == 2 && $character == 500, 'position is OK' ) ;
 
 eval{$buffer->SetModificationPosition(10, 0) ;} ;
 ok($@, 'SetModificationPosition died') ;
+
+#------------------------------------------------------------------------------------------------- 
+# Attributes
+ok($buffer->SetLineAttribute(0, 'TEST', [0, [1, 2]]), 'SetAttribute') ;
+is_deeply($buffer->GetLineAttribute(0, 'TEST'), [0, [1, 2]], 'GetAttribute') ;
+
+$buffer->DeleteLine(0) ;
+is($buffer->GetLineAttribute(0, 'TEST'), undef, 'Get unexisting attribute') ;
 
 #------------------------------------------------------------------------------------------------- 
 # Backspace
@@ -340,6 +375,56 @@ $buffer->Insert('u') ;
 #~ diag "\n" . hexdump(data => $buffer->GetText()) ;
 is($buffer->GetText(), "     hi\n\ttheru") ;
 
+# insert delete insert
+$buffer->Reset() ;
+$buffer->Insert("this is lower case") ;
+$buffer->SetModificationPosition(0, 8) ;
+$buffer->Delete(5) ;
+is($buffer->GetText(), 'this is  case', 'Insert, Delete, Insert') ;
+$buffer->Insert('UPPER') ;
+is($buffer->GetText(), 'this is UPPER case', 'Insert, Delete, Insert') ;
+
+$text = <<EOT ;
+line 1 - 1
+line 2 - 2 2
+line 3 - 3 3 3
+line 4 - 4 4 4 4
+line 5 - 5 5 5 5 5
+EOT
+
+#------------
+
+$expected_text = <<EOT ;
+line<123>1 - 1
+line 2 - 2 2
+line 3 - 3 3 3
+line 4 - 4 4 4 4
+line 5 - 5 5 5 5 5
+EOT
+
+$buffer->Reset() ;
+$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Test') ;
+$buffer->Insert($text) ;
+$buffer->SetSelectionBoundaries(0, 4, 0, 5) ;
+
+$buffer->Insert('<123>') ;
+is($buffer->CompareText($expected_text), '', 'Insertwith selection') ;
+
+
+#upper case
+#-------------
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Plugins::Case') ;
+
+$buffer->Insert("this is upper case") ;
+$buffer->GetSelection()->Set(0, 8, 0, 13) ;
+
+$buffer->Delete(1) ;
+$buffer->Insert('UPPER') ;
+
+is($buffer->GetText(), 'this is UPPER case', 'Upper casing selection') ;
+
+
 #------------------------------------------------------------------------------------------------- 
 # serialisation and multipline insertion
 my $buffer_1 = $buffer->new();
@@ -446,8 +531,20 @@ diag($message) if $result == 0 ;
 
 is($buffer->GetText(), "bar", 'buffer contains \'bar\'' ) ;
 
+TODO:
+{
+local $TODO = "Interface to todo functionality" ;
+fail($TODO) ;
+
+local $TODO = "Redo functionality" ;
+fail($TODO) ;
+
+local $TODO = "Interface to redo functionality" ;
+fail($TODO) ;
+}
+
 #------------------------------------------------------------------------------------------------- 
-# test do, file insertion  and undo
+# test Pluggin module loading, do, file insertion and undo
 
 my $file = __FILE__ ;
 
@@ -456,104 +553,45 @@ is(TestDoUndo(<<EOS), 1, 'test do and undo after file insertion') ;
 \$buffer->InsertFile('$file') ;
 EOS
 
-#------------------------------------------------------------------------------------------------- 
-#Selection
+#undo and selection
+#-----------------------
 
-$buffer = Text::Editor::Vip::Buffer->new();
-
-is($buffer->GetSelection()->IsEmpty(), 1, 'default selection is empty') ;
-
-$buffer->GetSelection()->SetAnchor(5, 5) ;
-$buffer->GetSelection()->SetLine(6, 3) ;
-
-is($buffer->GetSelection()->IsEmpty(), 0, 'selection not empty') ;
-is_deeply([5, 5, 6, 3], [$buffer->GetSelection()->GetBoundaries()], 'selection is as set') ;
-
-
-#------------------------------------------------------------------------------------------------- 
-#DeleteSelection
-
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Insert("line 1 - 1\nline 2 - 2 2") ;
-
-eval { $buffer->DeleteSelection() ;} ;
-is($@, '', 'DeletedSelection with empty selection didn\'t die') ;
-
-$buffer->GetSelection()->SetAnchor(0, 1) ;
-$buffer->GetSelection()->SetLine(1, 1) ;
-$buffer->DeleteSelection() ;
-is($buffer->GetText(), "line 2 - 2 2", 'DeletedSelection OK') ;
-
-# try with single line selection
-
-# try with outside buffer selection
-
-#~ $buffer->GetSelection()->SetAnchor(5, 5) ;
-#~ $buffer->GetSelection()->SetLine(6, 3) ;
-
-# insert delete selection too
-$do_buffer = <<'EODB' ;
-$buffer->Insert(<<EOT) ;
-AAAAX1 - 1
-BBBB 2 - 2 2
-CCCC 3 - 3X 3 3
+my $setup = <<'EOS' ;
+my $text = <<EOT ;
+line 1 - 1
+line 2 - 2 2
+line 3 - 3 3 3
+line 4 - 4 4 4 4
+line 5 - 5 5 5 5 5
 EOT
 
-$buffer->GetSelection()->SetAnchor(0, 4) ;
-$buffer->GetSelection()->SetLine(2, 10) ;
-EODB
+$buffer->Reset() ;
+$buffer->Insert($text) ;
+$buffer->SetSelectionBoundaries(0, 4, 0, 5) ;
+EOS
 
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Do($do_buffer) ;
+my $commands = <<'EOC' ;
+$buffer->Insert("<123>") ;
+EOC
 
-# replace selection with hi
-$buffer->Insert('<inserted>') ;
-is($buffer->GetText(), "AAAA<inserted>X 3 3\n", 'Inserting with selection') ;
+is(TestDoUndo($commands, $setup), 1, 'Test undo after Insert') ;
 
-# Delete delete selection too
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Do($do_buffer) ;
-$buffer->Delete(1) ;
-is($buffer->GetText(), "AAAAX 3 3\n", 'Deleting with selection') ;
+$setup = <<'EOS' ;
+my $text = <<EOT ;
+line 1 - 1
+line 2 - 2 2
+line 3 - 3 3 3
+line 4 - 4 4 4 4
+line 5 - 5 5 5 5 5
+EOT
 
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Do($do_buffer) ;
-$buffer->Delete(2) ;
-is($buffer->GetText(), "AAAA 3 3\n", 'Deleting with selection') ;
+$buffer->Reset() ;
+$buffer->Insert($text) ;
+$buffer->SetSelectionBoundaries(0, 4, 0, 20) ;
+EOS
 
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Do($do_buffer) ;
-$buffer->Delete(500) ;
-is($buffer->GetText(), "AAAA", 'Deleting with selection') ;
+$commands = <<'EOC' ;
+$buffer->Insert("<123>") ;
+EOC
 
-#Backspace delete selection too
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Do($do_buffer) ;
-$buffer->Backspace(1) ;
-is($buffer->GetText(), "AAAAX 3 3\n", 'Backspacing with selection') ;
-
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Do($do_buffer) ;
-$buffer->Backspace(2) ;
-is($buffer->GetText(), "AAAX 3 3\n", 'Backspaceing more with selection') ;
-
-#------------------------------------------------------------------------------------------------- 
-#RunSubOnSelection
-
-$buffer = Text::Editor::Vip::Buffer->new();
-$buffer->Insert("line\n" x 10) ;
-$buffer->GetSelection()->SetAnchor(0, 0) ;
-$buffer->GetSelection()->SetLine(10, 0) ;
-
-sub AddTab
-{
-my ($text, $selection_line_index, $modification_character, $original_selection, $buffer) = @_ ;
-
-return("\t$text" );
-}
-
-$buffer->RunSubOnSelection(\&AddTab, sub{die}) ;
-
-is($buffer->GetText, ("\tline\n" x 10) . "\t", "Added tab to selection") ;
-
-
+is(TestDoUndo($commands, $setup), 1, 'Test undo after Insert') ;

@@ -106,6 +106,7 @@ if($result)
 			$error++ ;
 			diag("\nWould you like a do buffer dump?") ;
 			my $answer = <STDIN> ;
+			$answer = 'y' unless defined $answer ;
 			
 			if($answer ne "\n")
 				{
@@ -127,7 +128,7 @@ if($result)
 		{
 		ok(1, 'Valid perl undo script') ;
 		
-		if(CompareBuffers("Doing (original, undone)", $buffer_original, $buffer_undone))
+		if(CompareBuffers("Undoing (original, undone)", $buffer_original, $buffer_undone))
 			{
 			ok(1, 'perl undo script OK')
 			}
@@ -136,6 +137,7 @@ if($result)
 			$error++ ;
 			diag("\nWould you like a do and an undo buffer dump?") ;
 			my $answer = <STDIN> ;
+			$answer = 'y' unless defined $answer ;
 			
 			if($answer ne "\n")
 				{
@@ -192,7 +194,7 @@ if ($lhb_line != $rhb_line || $lhb_character != $rhb_character)
 # content
 if($lhb_text ne $rhb_text)
 	{
-	diag("\n" . diff(\$lhb_text, \$rhb_text, {STYLE => 'Table'})) ;
+	diag("$message\n" . diff(\$lhb_text, \$rhb_text, {STYLE => 'Table'})) ;
 	
 	diag("\nBuffer 1:\n" . hexdump(data => $lhb_text, start_position => 0, end_position => 100)) ;
 	diag("\nBuffer 2:\n" . hexdump(data => $rhb_text, start_position => 0, end_position => 100)) ;
@@ -205,6 +207,33 @@ return(1) ;
 
 #-------------------------------------------------------------------------------
 
+sub CompareText
+{
+my $buffer = shift ;
+my $text = shift ;
+
+my $diff =  diff(\($buffer->GetText()), \$text, {STYLE => 'Table'}) ;
+$diff = "\n" . $diff unless $diff eq '' ;
+
+return($diff) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub PrintPositionData
+{
+my $buffer = shift ;
+my $message = shift || '' ;
+
+my ($package, $file_name, $line) = caller() ;
+$message .= " @ '$file_name:$line'" ;
+
+print "\n$message\n\tPosition: " .join(", ", $buffer->GetModificationPosition()) ;
+print "\n\tSelection: " . join(", ", $buffer->GetSelectionBoundaries()) . "\n" ;
+}
+
+#-------------------------------------------------------------------------------
+
 1;
 
 =head1 NAME
@@ -213,8 +242,14 @@ Text::Editor::Vip::Buffer::Test - Support functions for testing
 
 =head1 SYNOPSIS
 
-  use Text::Editor::Vip::Buffer::Test
+  use Test::More qw(no_plan);
   
+  use Text::Editor::Vip::Buffer ;
+  use Text::Editor::Vip::Buffer::Test ;
+  
+  my $buffer = new Text::Editor::Vip::Buffer() ;
+  
+  is(TestDoUndo('$buffer->DeleteLine(3) ;', '$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;'), 1, 'test undo after DeleteLine') ;
 
 =head1 DESCRIPTION
 

@@ -1,5 +1,5 @@
 
-package Text::Editor::Vip::Buffer::Constants;
+package Text::Editor::Vip::View::Plugins::IncrementalFind ;
 
 use strict;
 use warnings ;
@@ -11,15 +11,12 @@ use Exporter ();
 use vars qw ($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 $VERSION     = 0.01;
 @ISA         = qw (Exporter);
-@EXPORT      = qw (SMART_INDENTATION NO_SMART_INDENTATION);
+@EXPORT      = qw ();
 @EXPORT_OK   = qw ();
 %EXPORT_TAGS = ();
 }
 
-#-------------------------------------------------------------------------------
-
-use constant SMART_INDENTATION    => 1 ;
-use constant NO_SMART_INDENTATION => 0 ;
+die "Not ported to Vip yet!" ;
 
 #-------------------------------------------------------------------------------
 
@@ -27,17 +24,13 @@ use constant NO_SMART_INDENTATION => 0 ;
 
 =head1 NAME
 
-Text::Editor::Vip::Buffer::Constants - Editing engine constants
+Text::Editor::Vip::View::Plugins::IncrementalFind- Incremental find functionality plugin for Vip::View
 
 =head1 SYNOPSIS
 
-  use Text::Editor::Vip::Buffer::Constants
-  
 =head1 DESCRIPTION
 
-=head1 USAGE
-
-=head1 BUGS
+IncrementalFind- Incremental find functionality plugin for Vip::View
 
 =head1 AUTHOR
 

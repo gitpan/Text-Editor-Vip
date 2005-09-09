@@ -16,6 +16,8 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+#-------------------------------------------------------------------------------
+
 sub GetSelection
 {
 
@@ -25,8 +27,8 @@ Returns the selection object used by the buffer.
 
 =cut
 
-my $this = shift ;
-return($this->{SELECTION}) ;
+my $buffer = shift ;
+return($buffer->{SELECTION}) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -40,10 +42,133 @@ Sets the selection object passed as argument to use by the buffer
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $new_selection = shift or die ;
 
-$this->{SELECTION} = $new_selection ;
+my 
+	(
+	  $new_selection_start_line, $new_selection_start_character
+	, $new_selection_end_line, $new_selection_end_character
+	) = $new_selection->GetBoundaries() ;
+	
+my 
+	(
+	  $selection_start_line, $selection_start_character
+	, $selection_end_line, $selection_end_character
+	) = $buffer->GetBoundaries() ;
+
+
+$buffer->PushUndoStep
+		(
+		  "\$buffer->SetSelectionBoundaries($new_selection_start_line, $new_selection_start_character, $new_selection_end_line, $new_selection_end_character) ;"
+		, "\$buffer->SetSelectionBoundaries($selection_start_line, $selection_start_character, $selection_end_line, $selection_end_character) ;"
+		) ;
+
+$buffer->{SELECTION} = $new_selection ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetSelectionBoundaries
+{
+
+=head2 GetSelectionBoundaries
+
+Returns the selection boundaries used by the buffer.
+
+=cut
+
+my $buffer = shift ;
+return($buffer->{SELECTION}->GetBoundaries) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub SetSelectionBoundaries
+{
+
+=head2 SetSelectionBoundaries
+
+Sets the selection boundaries use by the buffer
+
+=cut
+
+my $buffer = shift ;
+
+
+my 
+	(
+	  $new_selection_start_line, $new_selection_start_character
+	, $new_selection_end_line, $new_selection_end_character
+	) = @_ ;
+	
+my 
+	(
+	  $selection_start_line, $selection_start_character
+	, $selection_end_line, $selection_end_character
+	) = $buffer->GetSelectionBoundaries() ;
+
+
+$buffer->PushUndoStep
+		(
+		  "\$buffer->SetSelectionBoundaries($new_selection_start_line, $new_selection_start_character, $new_selection_end_line, $new_selection_end_character) ;"
+		, "\$buffer->SetSelectionBoundaries($selection_start_line, $selection_start_character, $selection_end_line, $selection_end_character) ;"
+		) ;
+
+$buffer->{SELECTION}->Set(@_) ;
+	(
+	  $new_selection_start_line, $new_selection_start_character
+	, $new_selection_end_line, $new_selection_end_character
+	) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetSelectionText
+{
+
+=head2
+
+Returns the selection contents joined with "\n" except for the last line
+
+=cut
+
+my $buffer = shift ;
+
+my $selection_text = '' ;
+
+unless($buffer->{SELECTION}->IsEmpty())
+	{
+	$buffer->RunSubOnSelection
+				(
+				  sub
+					{
+					my ($text, $selection_line_index, $modification_character, $original_selection, $buffer) = @_;
+					
+					my 
+						(
+						  $selection_start_line, $selection_start_character
+						, $selection_end_line, $selection_end_character
+						) = $original_selection->GetBoundaries() ;
+					
+					if($selection_end_line == $selection_line_index)
+						{
+						# last line doesn't get a  \n
+						$selection_text .= $text ;
+						}
+					else	
+						{
+						$selection_text .= "$text\n" ;
+						}
+						
+					return($text) ;
+					}
+				  
+				, sub { $buffer->PrintError("Mark selection please\n") ; }
+				) ;
+	}
+	
+return($selection_text) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -57,24 +182,24 @@ Removes the text within the selection, if any,  from the buffer. Sets the modifi
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, 'DeleteSelection($buffer) ;', '   #', '# undo for DeleteSeletion()', '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, '$buffer->DeleteSelection() ;', '   #', '# undo for $buffer->DeleteSeletion()', '   ') ;
 
-unless($this->{SELECTION}->IsEmpty())
+unless($buffer->{SELECTION}->IsEmpty())
 	{
-	my ($start_line, $start_character) = $this->{SELECTION}->GetBoundaries() ;
+	my ($start_line, $start_character) = $buffer->{SELECTION}->GetBoundaries() ;
 	
-	$this->RunSubOnSelection
+	$buffer->RunSubOnSelection
 				(
 				  sub { return(undef) ; }
-				, sub { $this->PrintError("Mark selection please\n") ; }
+				, sub { $buffer->PrintError("Mark selection please\n") ; }
 				) ;
 				
-	$this->SetModificationLine($start_line) ;
-	$this->SetModificationCharacter($start_character) ;
+	$buffer->SetModificationLine($start_line) ;
+	$buffer->SetModificationCharacter($start_character) ;
 	
-	$this->{SELECTION}->Clear() ;
+	$buffer->{SELECTION}->Clear() ;
 	}
 }
 
@@ -90,26 +215,24 @@ It can return a string or undef if the section is to be removed.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my ($function, $error_sub_ref) = @_ ;
 
-unless($this->{SELECTION}->IsEmpty())
+unless($buffer->{SELECTION}->IsEmpty())
 	{
+	my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, '# $buffer->RunSubOnSelection() ;', '    ', '# undo for $buffer->DeleteSeletion()', '   ') ;
+	
 	my 
 		(
 		  $selection_start_line, $selection_start_character
 		, $selection_end_line, $selection_end_character
-		) = $this->{SELECTION}->GetBoundaries() ;
+		) = $buffer->{SELECTION}->GetBoundaries() ;
 		
-	my $original_selection = $this->{SELECTION}->Clone() ;
+	my $original_selection = $buffer->{SELECTION}->Clone() ;
 	
-	$this->{SELECTION}->Clear() ; # we use buffer functionw that might call this sub otherwise
+	$buffer->{SELECTION}->Clear() ; # we use buffer functionw that might call this sub otherwise
 
-	my $current_line     = $this->GetModificationLine() ;
-	my $current_position = $this->GetModificationCharacter() ;
-	
 	my $removing_end_of_first_line = 0 ;
-	my $number_of_lines_in_selection = $selection_end_line - $selection_start_line ;
 
 	my @lines_to_delete ;
 	my $wrap_first_line = -1 ; # we need two confimations to wrap the first line
@@ -117,31 +240,44 @@ unless($this->{SELECTION}->IsEmpty())
 	for
 		(
 		my $selection_line_index = $selection_start_line 
-		; $selection_line_index <= $selection_end_line 
+		; $selection_line_index <= $selection_end_line
 		; $selection_line_index++
 		)
 		{
 		# we remove the text and replace it with the text returned by the user sub
-		my $text = $this->GetLineText($selection_line_index) ;
+		my $text ;
+		eval {$text = $buffer->GetLineText($selection_line_index) ;} ;
+		
+		if($@)
+			{
+			$buffer->PrintError($@) ;
+			last ;
+			}
+		
 		my $modification_character ;
 		my $whole_line_selected = 0 ;
 		
+		my $line_length = $buffer->GetLineLength($selection_line_index) ;
+		
+		my $corrected_selection_start_character = $selection_start_character < $line_length ? $selection_start_character : $line_length ;
+		my $corrected_selection_end_character = $selection_end_character < $line_length ? $selection_end_character : $line_length ;
+		
 		if($selection_line_index == $selection_start_line && $selection_start_line == $selection_end_line)        
 			{
-			$text = substr($text, $selection_start_character, $selection_end_character - $selection_start_character) ;
+			$text = substr($text, $corrected_selection_start_character, $corrected_selection_end_character - $corrected_selection_start_character) ;
 			$modification_character = $selection_start_character ;
 			
-			$whole_line_selected++ if length($text) == $this->GetLineLength($selection_line_index) ;
+			$whole_line_selected++ if(length($text) == $line_length && 0 == $selection_start_character) ;
 			}
 		elsif($selection_line_index == $selection_start_line)
 			{
-			$text = substr($text, $selection_start_character) ;
+			$text = substr($text, $corrected_selection_start_character) ;
 			$modification_character = $selection_start_character ;
 			$wrap_first_line++ ;
 			}
 		elsif($selection_line_index == $selection_end_line)
 			{
-			$text = substr($text, 0, $selection_end_character)  ;
+			$text = substr($text, 0, $corrected_selection_end_character)  ;
 			$modification_character = 0 ;
 			}
 		else
@@ -151,34 +287,47 @@ unless($this->{SELECTION}->IsEmpty())
 			}
 			
 		# the sub has access to the line before we modify it
-		my $new_text = $function->($text, $selection_line_index, $modification_character, $original_selection, $this) ;
+		my $new_text = $function->($text, $selection_line_index, $modification_character, $original_selection, $buffer) ;
 		
-		$this->SetModificationPosition($selection_line_index, $modification_character) ;
-		$this->Delete(length($text)) ;
+		$buffer->SetModificationPosition($selection_line_index, $modification_character) ;
+		$buffer->Delete(length($text)) ;
 		
 		if(defined $new_text)
 			{
-			$this->Insert($new_text) ;
+			$buffer->Insert($new_text) ;
 			}
 		else
 			{
-			# deleted lines are not taken away before all lines are processed
-			push @lines_to_delete, $selection_line_index if($whole_line_selected) ;
-			
 			if($selection_line_index == $selection_start_line)
 				{
 				$wrap_first_line++ ;
 				}
+				
+			# deleted lines are not taken away before all lines are processed
+			
+			#~ print "$selection_line_index == $selection_end_line && $selection_end_character\n" ;
+			
+			if($whole_line_selected)
+				{
+				# last line is never deleted
+				push @lines_to_delete, $selection_line_index unless ($selection_line_index == $selection_end_line) ;
+				}
 			}
 		}
 		
-	$this->DeleteLine($_) for (reverse @lines_to_delete) ;
+	$buffer->DeleteLine($_) for (reverse @lines_to_delete) ;
 	
-	if($wrap_first_line)
+	if($wrap_first_line == 1)
 		{
-		$this->SetModificationPosition($selection_start_line, $selection_start_character) ;
-		$this->Delete(1) ;
+		$buffer->SetModificationPosition($selection_start_line, $selection_start_character) ;
+		$buffer->Delete(1) ;
 		}
+		
+	$buffer->{SELECTION}->Set
+		(
+		  $selection_start_line, $selection_start_character
+		, $selection_end_line, $selection_end_character
+		)  ;
 	}
 else
 	{

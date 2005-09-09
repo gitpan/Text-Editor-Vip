@@ -24,15 +24,29 @@ Text::Editor::Vip::View - Buffer visualisation
 
 =head1 DESCRIPTION
 
-Stub documentation for this module was created by ExtUtils::ModuleMaker.
-It looks like the author of the extension was negligent enough
-to leave the stub unedited.
+base class to define views for Text::Editor::Vip::Buffer.
 
-=head1 USAGE
+=head1 MEMBER FUNCTIONS
 
-=head1 BUGS
+=cut
 
-=head1 SUPPORT
+#-----------------------------------------------------------------
+
+sub new
+{
+
+=head2 new
+
+creates a new View object.
+
+=cut
+
+my ($class, %parameters) = @_;
+
+my $self = bless ({}, ref ($class) || $class);
+
+return ($self);
+}
 
 =head1 AUTHOR
 
@@ -51,15 +65,7 @@ LICENSE file included with this module.
 
 =cut
 
-sub new
-{
-	my ($class, %parameters) = @_;
-
-	my $self = bless ({}, ref ($class) || $class);
-
-	return ($self);
-}
-
+#-----------------------------------------------------------------
 
 1;
 

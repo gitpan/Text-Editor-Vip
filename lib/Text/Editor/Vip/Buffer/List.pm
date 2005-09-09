@@ -16,6 +16,21 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::List - lines container
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::Buffer::List
+
+=head1 DESCRIPTION
+
+
+=head1 MEMBER FUNCTIONS
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub new
@@ -177,33 +192,6 @@ else
 #-------------------------------------------------------------------------------
 
 1;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::List - lines container
-
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip::Buffer::List
-  
-
-=head1 DESCRIPTION
-
-Stub documentation for this module was created by ExtUtils::ModuleMaker.
-It looks like the author of the extension was negligent enough
-to leave the stub unedited.
-
-Blah blah blah.
-
-
-=head1 USAGE
-
-
-=head1 BUGS
-
-
-=head1 SUPPORT
-
 
 =head1 AUTHOR
 

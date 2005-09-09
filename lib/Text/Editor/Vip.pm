@@ -7,7 +7,7 @@ BEGIN
 {
 use Exporter ();
 use vars qw ($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-$VERSION     = '0.01_2';
+$VERSION     = '0.02_1';
 @ISA         = qw (Exporter);
 @EXPORT      = qw ();
 @EXPORT_OK   = qw ();
@@ -19,20 +19,9 @@ $VERSION     = '0.01_2';
 
 Text::Editor::Vip - Perl Editor
 
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip
-  
-
 =head1 DESCRIPTION
 
 See the README file.
-
-=head1 USAGE
-
-=head1 BUGS
-
-=head1 SUPPORT
 
 =head1 AUTHOR
 
@@ -53,17 +42,4 @@ perl(1).
 
 =cut
 
-sub new
-{
-my ($class, %parameters) = @_;
-
-my $self = bless ({}, ref ($class) || $class);
-
-return ($self);
-}
-
-
-1;
-
-__END__
-
+1 ;

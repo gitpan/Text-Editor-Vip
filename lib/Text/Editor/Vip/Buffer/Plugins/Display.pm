@@ -17,8 +17,8 @@ $VERSION     = 0.01;
 
 #------------------------------------------------------------------------------
 
-sub SetTabSize { $_[0]->{'Text::Editor::Vip::Buffer::Display::TAB_SIZE'} = $_[1] ;}
-sub GetTabSize { return ($_[0]->{'Text::Editor::Vip::Buffer::Display::TAB_SIZE'}) ;}
+sub SetTabSize { $_[0]->{'Text::Editor::Vip::Buffer::Plugins::Display::TAB_SIZE'} = $_[1] ;}
+sub GetTabSize { return ($_[0]->{'Text::Editor::Vip::Buffer::Plugins::Display::TAB_SIZE'} || 8) ;}
 
 #-------------------------------------------------------------------------------
 
@@ -26,17 +26,19 @@ sub GetCharacterPositionInText
 {
 # given a display position, returns the the position in text
 
-my ($this, $line_index, $position, $line_text) = @_ ;
+my ($buffer, $line_index, $position, $line_text) = @_ ;
 
-$line_text ||= $this->GetLineText($line_index) ;
+$line_text = $buffer->GetLineText($line_index) unless defined $line_text ;
 
 my ($character_position, $display_position) = (0, 0) ;
+
+my $tab_size = $buffer->GetTabSize() ;
 
 for (split //, $line_text)
 	{
 	if($_ eq "\t")
 		{
-		$display_position += $this->{'Text::Editor::Vip::Buffer::Display::TAB_SIZE'} ;
+		$display_position += $tab_size ;
 		}
 	else
 		{
@@ -61,12 +63,14 @@ else
 
 sub GetCharacterDisplayPosition
 {
-my ($this, $line_index, $position, $line_text) = @_ ;
+my ($buffer, $line_index, $position, $line_text) = @_ ;
 
-$line_text = $this->GetLineText($line_index) ;
+$line_text = $buffer->GetLineText($line_index) ;
 substr($line_text, $position) = '' if $position < length($line_text) ;
 
-return(($line_text =~ tr/\t/\t/ * ($this->{'Text::Editor::Vip::Buffer::Display::TAB_SIZE'} - 1)) + $position) ;
+my $tab_size = $buffer->GetTabSize() ;
+
+return(($line_text =~ tr/\t/\t/ * ($tab_size - 1)) + $position) ;
 }
 
 #-------------------------------------------------------------------------------

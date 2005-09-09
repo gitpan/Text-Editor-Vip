@@ -11,5 +11,6 @@ Module::Build->new
 		File::Slurp         => '0',
 		Data::Hexdumper     => '0',
 		Text::Diff          => '0',
+		Clone               => '0',
 		},
 	)->create_build_script;

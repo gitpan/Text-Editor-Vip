@@ -1,8 +1,53 @@
 TODO list for Perl module Text::Editor::Vip
 ===========================================
 
+* View base class and its pluggins
+	keybiard handlers
 
+* Application and setup
+	Adding tools to application
+
+* lexers and folding
+
+* find the align equal sign written in Simrishamn
+
+* Get The copy and comment script from work.
+
+* Ex and other emulators
+	http://www.sandia.gov/ASCI/Red/usage/paragon/man/man1/ex.1.html
+	http://resin.csoft.net/cgi-bin/man.cgi?section=1&topic=ex
+	
+* document plugins
+
+* Should we have a mecanism to always save the buffer in case of an exception?
+	
 * Backspace with argument > 1 not handled efficiently (at all!)
+
+* use Log4Perl to log stuff
+
+* I haven't decided yet how to handle erroneous arguments. Croak, Call a user 
+	defined function, ignore and log, return error codes !!!
+	=> log the call stack when dying
+
+* oops, what about override mode?
+
+#* Test setting attributed into lines
+
+#* Add a Set command, in a plugin, that handles the undo stack properly
+
+#* Should SetSelection handle the do/undo stack?
+
+#* Shouldn't we "inherit" in the opposit order? 
+
+#* Find doesn't set selection anymore, add example somewhere
+	#~ $buffer->SetModificationPosition($match_line, $match_position + length($match_word)) ;
+	#~ $buffer->{SELECTION}->Set($match_line, $match_position,$match_line, $match_position + length($match_word)) ;
+
+# more tests, some are listed as comments
+	#test plugins
+
+# Put the different types of indenters in a module
+	=> Text::Editor::Vip::Plugins::Indenters
 
 # Change all so script to OO style
 
@@ -11,12 +56,6 @@ TODO list for Perl module Text::Editor::Vip
 	
 #GetText() should return an array when called in array context
 
-* SetSelection must handle the do/undo stack
-
-* I haven't decided yet how to handle erroneous arguments. Croak, Call a user 
-	defined function, ignore and log, return error codes !!!
-	=> log the call stack when dying
-	
 # should it be possible to handle the selection directly
 	Yes
 	
@@ -25,20 +64,11 @@ TODO list for Perl module Text::Editor::Vip
 
 # return an object in a unique package
 
-* Remove reset sub ?
-
-* Should we undo if Do dies?
-
-* use Log4Perl to log stuff
-
-* Add a Set command, in a plugin, that handles the undo stack properly
-
 # move tab related functinos in a plugin
 
-* Put the different types of indenters in a module
-	=> Text::Editor::Vip::Plugins::Indenters
-
-* more tests, some are listed as comments
-	test plugins
-
-* document plugins
+# Remove reset sub ?
+	=> Keep
+	
+# Should we undo if Do dies?
+	=> No, let view writter decide
+	

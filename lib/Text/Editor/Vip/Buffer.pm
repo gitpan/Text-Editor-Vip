@@ -28,10 +28,25 @@ use Text::Editor::Vip::CommandBlock ;
 
 #-------------------------------------------------------------------------------
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer - Editing engine
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::Buffer ;
+  my $buffer = new Text::Editor::Vip::Buffer() ;
+  
+=head1 DESCRIPTION
+
+This module implements the core functionality for an editing engine. It knows about 
+selection,  undo and plugins.
+
 =head1 MEMBER FUNCTIONS
- 
 
 =cut
+
+my $uid = 0 ;
 
 sub new
 {
@@ -47,20 +62,25 @@ Create a Text::Editor::Vip::Buffer .
 my $invocant = shift ;
 
 my $class = ref($invocant) || $invocant ;
-my $this = {} ;
+my $buffer = {} ;
 
 my ($package, $file_name, $line) = caller() ;
 $file_name =~ s/[^0-9a-zA-Z_]/_/g ;
 
 # push this object in a 'unique' class
-$class .= "::${file_name}_$line" ;
-my $this_package = __PACKAGE__ ;
-eval "push \@${class}::ISA, '$this_package' ;" ;
+# this lets us expand a single object functionality without expanding
+# all objects
+$class .= "::${file_name}_${line}_$uid" ;
+$uid++ ;
+  
+my $buffer_package = __PACKAGE__;
+eval "unshift \@${class}::ISA, '$buffer_package' ;" ;
 
-my $buffer= bless $this, $class ;
+bless $buffer, $class ;
 
 $buffer->Setup(@_) ;
 $buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::DoUndoRedo') ;
+$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Indenter') ;
 $buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Selection') ;
 
 return($buffer) ;
@@ -70,9 +90,16 @@ return($buffer) ;
 
 sub Setup
 {
-my $this = shift ;
 
-%$this = 
+=head2 Setup
+
+Helper sub called by new. This is considerer private.
+
+=cut
+
+my $buffer = shift ;
+
+%$buffer = 
 	(
 	  NODES                        => new Text::Editor::Vip::Buffer::List()
 	, MARKED_AS_EDITED             => 0
@@ -89,7 +116,7 @@ my $this = shift ;
 	) ;
 
 
-$this->{NODES}->Push({TEXT => ''}) ;
+$buffer->{NODES}->Push({TEXT => ''}) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -106,14 +133,65 @@ Empties the buffer from it's contents as if it was newly created. L<Plugins> are
 
 #-------------------------------------------------------------------------------
 
+sub ExpandedWithOrLoad
+{
+
+=head2 ExpandedWithOrLoad
+
+See L<PLUGGINS>.
+
+If the name passed as first argument doesn't match a sub within the object, the module, passed as second argument,
+is loaded.
+
+  # newly created buffer that is missing a functionality
+  $buffer->SomeSub(); # perl dies
+  
+  # load plugin first
+  $buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Plugins::SomePlugin') ;
+  $buffer->SomeSub(); # ok
+  
+  # load the plugin only if the sub is available. This doesn't guarantee that 'SomeSub' has been
+  # loaded from the passed Plugin.
+  
+  $buffer->ExpandedWithOrLoad('SomeSub', 'Text::Editor::Vip::Buffer::Plugins::SomePlugin') ;
+  $buffer->SomeSub(); #ok
+
+Returns 1 if the sub existed and 0 if it didn't and the module was loaded or the error type B<LoadAndExpandWith> generated.
+
+=cut
+
+my $buffer   = shift ;
+my $sub_name = shift ;
+my $module   = shift ;
+
+my $class = ref($buffer) ;
+
+my $sub ;
+eval "\$sub = ${class}->can('${sub_name}') ;" ;
+
+if(defined $sub)
+	{
+	return(1) ;
+	}
+else
+	{
+	$buffer->LoadAndExpandWith($module) ;
+	return(0) ;
+	}
+}
+
+#-------------------------------------------------------------------------------
+
 sub LoadAndExpandWith
 {
 
 =head2 LoadAndExpandWith
 
+See L<PLUGGINS>.
+
 Loads a perl module (plugin) and adds all it functionality to the buffer
 
-  $buffer->LoadAndExpandWith('Text::Editor::Vip::Plugins::File') ;
+  $buffer->LoadAndExpandWith('Text::Editor::Vip::Plugins::Buffer::File') ;
   
   # we can now read files
   $buffer->InsertFile(__FILE__) ;
@@ -122,19 +200,27 @@ Loads a perl module (plugin) and adds all it functionality to the buffer
 
 # look at Export::Cluster, Export::Dispatch
 
-my $this =  shift ;
+my $buffer =  shift ;
 my $module = shift ;
 
 eval "use $module ;" ;
-die __PACKAGE__ . " couldn't load '$module':\n$@" if $@ ;
+die __PACKAGE__ . " couldn't load '$module':\n$@\n" if $@ ;
 
-my $this_package = ref($this) ;
-eval "push \@${this_package}::ISA, '$module' ;" ;
+my $class = ref($buffer) ;
+eval "push \@${class}::ISA, '$module' ;" ;
+
+$buffer->PushUndoStep
+		(
+		  "\$buffer->LoadAndExpandWith('$module') ;"
+		, "# undo for \$buffer->LoadAndExpandWith('$module') ;"
+		) ;
+
+#alternative way to expend the object
 
 # expands the current's package ISA not the objects isa
 #~ push @ISA, $module ;
 
-#~ my $class = ref($this) ;
+#~ my $class = ref($buffer) ;
 
 #~ my $symbole_tabel = "main::${module}::" ;
 
@@ -146,7 +232,7 @@ eval "push \@${this_package}::ISA, '$module' ;" ;
 		#~ if(*{$symbole_tabel->{$_}}{CODE})
 			#~ {
 			#~ print "code => $_\n" ;
-			#~ $this->ExpandWith($_, *{$symbole_tabel->{$_}}{CODE})
+			#~ $buffer->ExpandWith($_, *{$symbole_tabel->{$_}}{CODE})
 			#~ }
 		#~ }
 	#~ }
@@ -159,7 +245,9 @@ sub ExpandWith
 
 =head2 ExpandWith
 
-Adds a member function to the buffer. 
+See L<PLUGGINS>.
+
+Adds a sub to a buffer instance. 
 
   $buffer->ExpandWith
 		(
@@ -181,13 +269,15 @@ The second argument is optional, if it is not given, Text::Editor::Vip::Buffer w
   $buffer->ExpandWith( 'GotoBufferStart') ;
   $buffer->GotoBufferStart() ;
 
+DEV. WARNING! This is going to give us troubles when using it for macros that are saved to disk!
+
 =cut
 
-my $this =  shift ;
+my $buffer =  shift ;
 my $sub_name = shift ;
 my $sub = shift ;
 
-my $class = ref($this) ;
+my $class = ref($buffer) ;
 
 my $warning = '' ;
 local $SIG{'__WARN__'} = sub {$warning = $_[0] ;} ;
@@ -223,15 +313,15 @@ Returns (1) on success and (0, "error message") on failure.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $perl_script = shift || '' ;
 
-our $buffer = $this ;
+our $buffer = $buffer ;
 eval $perl_script ;
 
 if($@)
 	{
-	$this->PrintError("\n* Failed evaluating buffer command *\n$perl_script\n$@\n") ;
+	$buffer->PrintError("\n* Failed evaluating buffer command *\n$perl_script\n$@\n") ;
 	return(0, $@) ;
 	}
 else
@@ -244,10 +334,22 @@ else
 
 sub PrintError
 {
-my $this = shift ;
+=head2 PrintError
+
+This sub is called when an error occures. It should be overriden by the buffer user. We use this
+sub to abstract error handling and allow different handling dependind on the buffer user.
+
+If the user is a plain perl script, the error might just be logged while a dialogue might be displayed
+if the user is a full UI.
+
+=cut
+
+my $buffer = shift ;
 my $message = shift ;
 
-die "\n\n !! Using default PrintError wich simply dies !!\n\n"  . $message ;
+my ($package, $file_name, $line) = caller() ;
+
+confess "\n\n Using default PrintError wich dies !!\n\n$message" ;
 }
 
 #-------------------------------------------------------------------------------
@@ -263,16 +365,16 @@ See L<GetTextAsArrayRef>.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 
 my $text = '' ;
 
-for(0 .. ($this->GetNumberOfLines() - 2))
+for(0 .. ($buffer->GetNumberOfLines() - 2))
 	{
-	$text .= $this->GetLine($_)->{TEXT} . "\n" ;
+	$text .= $buffer->GetLine($_)->{TEXT} . "\n" ;
 	}
 
-$text .= $this->GetLine(($this->GetNumberOfLines() - 1))->{TEXT} ;
+$text .= $buffer->GetLine(($buffer->GetNumberOfLines() - 1))->{TEXT} ;
 
 return($text) ;
 }
@@ -290,16 +392,57 @@ See L<GetText>.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 
 my @text ;
 
-for(0 .. ($this->GetNumberOfLines() - 1))
+for(0 .. ($buffer->GetNumberOfLines() - 1))
 	{
-	push @text, $this->GetLine($_)->{TEXT} ;
+	push @text, $buffer->GetLine($_)->{TEXT} ;
 	}
 
 return(\@text) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub SetLineAttribute
+{
+
+=head2 SetLineAttribute
+
+Attaches a named attribute to a line. 
+
+  $buffer->SetLineAttribute(0, 'TEST', $some_data) ;
+  $retrieved_data = $buffer->GetLineAttribute(0'TEST', $some_data) ;
+
+=cut
+
+my ($buffer, $line, $attribute_name, $attribute) = @_ ;
+$line = $buffer->GetModificationLine() unless defined $line ;
+
+$buffer->GetLine($line)->{$attribute_name} = $attribute ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetLineAttribute
+{
+
+=head2 SetLineAttribute
+
+Retrieves  a named attribute from a line. 
+
+  $buffer->SetLineAttribute(0, 'TEST', $some_data) ;
+  $retrieved_data = $buffer->GetLineAttribute(0'TEST', $some_data) ;
+
+=cut
+
+my ($buffer, $line, $attribute_name, $attribute) = @_ ;
+
+$line = $buffer->GetModificationLine() unless defined $line ;
+
+return($buffer->GetLine($line)->{$attribute_name}) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -364,12 +507,40 @@ Sets the position, line and character, where the next modification will occure.
 
 =cut
 
-my ($this, $line, $character) = @_ ;
+my ($buffer, $line, $character) = @_ ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "\$buffer->SetModificationPosition($line, $character) ;", '   #', "# undo for \$buffer->SetModificationPosition($line, $character) ;", '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, "\$buffer->SetModificationPosition($line, $character) ;", '   #', "# undo for \$buffer->SetModificationPosition($line, $character) ;", '   ') ;
 
-$this->SetModificationLine($line) ;
-$this->SetModificationCharacter($character) ;
+$buffer->SetModificationLine($line) ;
+$buffer->SetModificationCharacter($character) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub OffsetModificationPosition
+{
+
+=head2 SetModificationPosition
+
+Sets the position, line and character, where the next modification will occure.
+
+   $buffer->SetModificationPosition(0, 15) ;
+
+=cut
+
+my ($buffer, $line_offset, $character_offset) = @_ ;
+
+my $undo_block = new Text::Editor::Vip::CommandBlock
+			(
+			  $buffer
+			, "\$buffer->OffsetModificationPosition($line_offset, $character_offset) ;"
+			, '   #'
+			, "\$buffer->OffsetModificationPosition(-($line_offset), -($character_offset)) ;"
+			, '   '
+			) ;
+
+$buffer->SetModificationLine($buffer->GetModificationLine() + $line_offset) ;
+$buffer->SetModificationCharacter($buffer->GetModificationCharacter() + $character_offset) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -382,6 +553,7 @@ sub GetModificationLine
 Returns the line where the next modification will occure.
 
 =cut
+
 return($_[0]->{MODIFICATION_LINE}) ;
 }
 
@@ -395,14 +567,15 @@ sub SetModificationLine
 Set the line where the next modification will occure.
 
 =cut
-my $this = shift ;
+
+my $buffer = shift ;
 my $a_new_modification_line = shift ;
 
-my $current_line = $this->GetModificationLine() ;
+my $current_line = $buffer->GetModificationLine() ;
 
 if
 	(
-	$a_new_modification_line < $this->GetNumberOfLines()
+	$a_new_modification_line < $buffer->GetNumberOfLines()
 	&& 0 <= $a_new_modification_line
 	)
 	{
@@ -410,17 +583,17 @@ if
 		{
 		PushUndoStep
 			(
-			$this
+			$buffer
 			, "\$buffer->SetModificationLine($a_new_modification_line) ;"
 			, "\$buffer->SetModificationLine($current_line) ;"
 			) ;
 			
-		$this->{MODIFICATION_LINE} = $a_new_modification_line ;
+		$buffer->{MODIFICATION_LINE} = $a_new_modification_line ;
 		}
 	}
 else
 	{
-	$this->PrintError("Invalid line index: $a_new_modification_line. Number of lines: " . $this->GetNumberOfLines(). "\n") ;
+	$buffer->PrintError("Invalid line index: $a_new_modification_line. Number of lines: " . $buffer->GetNumberOfLines(). "\n") ;
 	}
 }
 
@@ -435,8 +608,8 @@ Returns the character where the next modification will occure.
 
 =cut
 
-my $this = shift ;
-return($this->{MODIFICATION_CHARACTER}) ;
+my $buffer = shift ;
+return($buffer->{MODIFICATION_CHARACTER}) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -450,10 +623,10 @@ Sets the character where the next modification will occure.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $a_new_modification_character = shift ;
 
-my $current_character = $this->GetModificationCharacter() ;
+my $current_character = $buffer->GetModificationCharacter() ;
 
 if(0 <= $a_new_modification_character)
 	{
@@ -461,17 +634,17 @@ if(0 <= $a_new_modification_character)
 		{
 		PushUndoStep
 			(
-			$this
+			$buffer
 			, "\$buffer->SetModificationCharacter($a_new_modification_character) ;"
 			, "\$buffer->SetModificationCharacter($current_character) ;"
 			) ;
 			
-		$this->{MODIFICATION_CHARACTER} = $a_new_modification_character ;
+		$buffer->{MODIFICATION_CHARACTER} = $a_new_modification_character ;
 		}
 	}
 else
 	{
-	$this->PrintError("Invalid character index: $a_new_modification_character\n") ;
+	$buffer->PrintError("Invalid character index: $a_new_modification_character\n") ;
 	}
 }
 
@@ -479,10 +652,19 @@ else
 
 sub GetLine
 {
-my $this         = shift ;
+
+=head2 GetLine
+
+Returns the Line object used by the buffer. This is a private sub and should not be used directly.
+
+See L<GetLineText>.
+
+=cut
+
+my $buffer         = shift ;
 my $a_line_index = shift ;
 
-return($this->{NODES}->GetNodeData($a_line_index)) ;
+return($buffer->{NODES}->GetNodeData($a_line_index)) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -499,18 +681,18 @@ Returns the text of the line passes as argument or the current modification line
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $a_line_index = shift ;
 
-$a_line_index = $this->GetModificationLine() unless defined $a_line_index ;
+$a_line_index = $buffer->GetModificationLine() unless defined $a_line_index ;
 
-if(0 <= $a_line_index && $a_line_index < $this->GetNumberOfLines())
+if(0 <= $a_line_index && $a_line_index < $buffer->GetNumberOfLines())
 	{
-	return($this->GetLine($a_line_index)->{TEXT}) ;
+	return($buffer->GetLine($a_line_index)->{TEXT}) ;
 	}
 else
 	{
-	$this->PrintError("GetLineText: Invalid line index: $a_line_index. Number of lines: " . $this->GetNumberOfLines(). "\n") ;
+	$buffer->PrintError("GetLineText: Invalid line index: $a_line_index. Number of lines: " . $buffer->GetNumberOfLines(). "\n") ;
 	return('') ;
 	}
 }
@@ -529,12 +711,12 @@ Returns the length of the text of the line passes as argument or the current mod
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $a_line_index = shift ;
 
-$a_line_index = $this->GetModificationLine() unless defined $a_line_index ;
+$a_line_index = $buffer->GetModificationLine() unless defined $a_line_index ;
 
-return(length($this->GetLineText($a_line_index))) ;
+return(length($buffer->GetLineText($a_line_index))) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -549,28 +731,28 @@ Doing a Backspace while at the begining of a line warps to the previous line.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $number_of_character_to_delete = shift || 0 ;
 
 return if 0 >= $number_of_character_to_delete  ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "\$buffer->Backspace($number_of_character_to_delete) ;", '   #', "# undo for \$buffer->Backspace($number_of_character_to_delete)", '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, "\$buffer->Backspace($number_of_character_to_delete) ;", '   #', "# undo for \$buffer->Backspace($number_of_character_to_delete)", '   ') ;
 
-if($this->{SELECTION}->IsEmpty())
+if($buffer->{SELECTION}->IsEmpty())
 	{
 	for (1 .. $number_of_character_to_delete)
 		{
 		
-		my $current_line     = $this->GetModificationLine() ;
-		my $current_position = $this->GetModificationCharacter() ;
+		my $current_line     = $buffer->GetModificationLine() ;
+		my $current_position = $buffer->GetModificationCharacter() ;
 
 		if($current_position != 0)
 			{
-			$this->SetModificationCharacter($current_position - 1) ;
+			$buffer->SetModificationCharacter($current_position - 1) ;
 		
-			if($current_position <= $this->GetLineLength($current_line))
+			if($current_position <= $buffer->GetLineLength($current_line))
 				{
-				$this->Delete(1) ;
+				$buffer->Delete(1) ;
 				}
 			#else
 				#after end of line, already modified position
@@ -579,18 +761,18 @@ if($this->{SELECTION}->IsEmpty())
 			{
 			if($current_line != 0)
 				{
-				$this->SetModificationLine($current_line -1) ;
+				$buffer->SetModificationLine($current_line -1) ;
 				
 				#Move to end of line
-				$this->SetModificationCharacter
+				$buffer->SetModificationCharacter
 					(
-					$this->GetLineLength
+					$buffer->GetLineLength
 						(
-						$this->GetModificationLine()
+						$buffer->GetModificationLine()
 						)
 					) ;
 					
-				$this->Delete(1) ;
+				$buffer->Delete(1) ;
 				}
 			#else
 				# at first line
@@ -599,8 +781,8 @@ if($this->{SELECTION}->IsEmpty())
 	}
 else
 	{
-	$this->DeleteSelection() ;
-	$this->Backspace($number_of_character_to_delete - 1) ;
+	$buffer->DeleteSelection() ;
+	$buffer->Backspace($number_of_character_to_delete - 1) ;
 	}
 }
 
@@ -618,25 +800,25 @@ The line itself is not deleted and the modification position is not modified.
 
 =cut
 
-my $this = shift ;
+my $buffer = shift ;
 my $line_index = shift ;
 
-$line_index = $this->GetModificationLine() unless defined $line_index ;
+$line_index = $buffer->GetModificationLine() unless defined $line_index ;
 
-my $modification_line = $this->GetModificationLine() ;
-my $modification_character = $this->GetModificationCharacter() ;
+my $modification_line = $buffer->GetModificationLine() ;
+my $modification_character = $buffer->GetModificationCharacter() ;
 
-if(0 <= $line_index && $line_index < $this->GetNumberOfLines())
+if(0 <= $line_index && $line_index < $buffer->GetNumberOfLines())
 	{
-	my $line = $this->GetLine($line_index) ;
+	my $line = $buffer->GetLine($line_index) ;
 	my $text = $line->{TEXT} ;
 	$line->{TEXT} = '' ;
 	
-	$this->MarkBufferAsEdited() ;
+	$buffer->MarkBufferAsEdited() ;
 	
 	PushUndoStep
 		(
-		$this
+		$buffer
 		, "\$buffer->ClearLine($line_index) ;"
 		, [
 		    "\$buffer->SetModificationPosition($line_index, 0) ;" 
@@ -648,7 +830,7 @@ if(0 <= $line_index && $line_index < $this->GetNumberOfLines())
 	}
 else
 	{
-	$this->PrintError("GetLineText: Invalid line index: $line_index. Number of lines: " . $this->GetNumberOfLines(). "\n") ;
+	$buffer->PrintError("GetLineText: Invalid line index: $line_index. Number of lines: " . $buffer->GetNumberOfLines(). "\n") ;
 	}
 }
 
@@ -661,27 +843,31 @@ sub Delete
 
 Deleted, from the modification position, the number of characters passed as argument.
 
+Deletes the selection if it exists; the deleted selection decrements the number of character to delete argument
+
 =cut
 
-my $this = shift ;
-my $a_number_of_character_to_delete = shift ;
+my $buffer = shift ;
+my $a_number_of_character_to_delete = shift || 0 ;
 
 return if 0 >= $a_number_of_character_to_delete ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "\$buffer->Delete($a_number_of_character_to_delete) ;", '   #', "# undo for \$buffer->Delete($a_number_of_character_to_delete)", '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, "\$buffer->Delete($a_number_of_character_to_delete) ;", '   #', "# undo for \$buffer->Delete($a_number_of_character_to_delete)", '   ') ;
 
-unless($this->{SELECTION}->IsEmpty())
+unless($buffer->{SELECTION}->IsEmpty())
 	{
-	$this->DeleteSelection() ;
+	$buffer->DeleteSelection() ;
 	$a_number_of_character_to_delete-- ;
 	}
 
-my ($modification_line, $modification_character) = $this->GetModificationPosition() ;
-my $line_length = $this->GetLineLength() ;
+return if 0 >= $a_number_of_character_to_delete ;
+
+my ($modification_line, $modification_character) = $buffer->GetModificationPosition() ;
+my $line_length = $buffer->GetLineLength() ;
 
 if($modification_character < $line_length)
 	{
-	my $line_ref = \($this->GetLine($modification_line)->{TEXT}) ;
+	my $line_ref = \($buffer->GetLine($modification_line)->{TEXT}) ;
 	
 	my $character_to_delete_on_this_line = min
 						(
@@ -698,7 +884,7 @@ if($modification_character < $line_length)
 		
 	PushUndoStep
 		(
-		  $this
+		  $buffer
 		, "# deleting in current line"
 		, [
 		    '$buffer->Insert("' . Stringify($deleted_text) . '") ;'
@@ -712,21 +898,21 @@ else
 	{
 	# at end of line, copy next line to this line
 	
-	return if $modification_line == ($this->GetNumberOfLines() - 1) ;
+	return if $modification_line == ($buffer->GetNumberOfLines() - 1) ;
 	
-	$this->Insert($this->GetLine($modification_line + 1)->{TEXT}) ;
-	$this->DeleteLine($modification_line + 1) ;
-	$this->SetModificationPosition($modification_line, $modification_character) ;
+	$buffer->Insert($buffer->GetLine($modification_line + 1)->{TEXT}) ;
+	$buffer->DeleteLine($modification_line + 1) ;
+	$buffer->SetModificationPosition($modification_line, $modification_character) ;
 	
 	$a_number_of_character_to_delete-- ; # delete '\n'
 	}
 	
 if($a_number_of_character_to_delete)
 	{
-	$this->Delete($a_number_of_character_to_delete) ;
+	$buffer->Delete($a_number_of_character_to_delete) ;
 	}
 
-$this->MarkBufferAsEdited() ;
+$buffer->MarkBufferAsEdited() ;
 }
 
 #-------------------------------------------------------------------------------
@@ -741,24 +927,24 @@ The selection and modification position are not modified.
 
 =cut
 
-my $this                   = shift ;
+my $buffer                   = shift ;
 my $a_line_to_delete_index = shift ;
 
-$a_line_to_delete_index = $this->GetModificationLine() unless defined $a_line_to_delete_index ;
+$a_line_to_delete_index = $buffer->GetModificationLine() unless defined $a_line_to_delete_index ;
 
-return if $this->GetNumberOfLines() == 1 ; # buffer always has at least one line
+return if $buffer->GetNumberOfLines() == 1 ; # buffer always has at least one line
 
-my ($modification_line, $modification_character) = $this->GetModificationPosition() ;
+my ($modification_line, $modification_character) = $buffer->GetModificationPosition() ;
 
-my $text = Stringify($this->GetLineText($a_line_to_delete_index)) ;
+my $text = Stringify($buffer->GetLineText($a_line_to_delete_index)) ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "# DeleteLine", '    ', '# undo for DeleteLine', '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, "# DeleteLine", '    ', '# undo for DeleteLine', '   ') ;
 
-if($a_line_to_delete_index != ($this->GetNumberOfLines() - 1))
+if($a_line_to_delete_index != ($buffer->GetNumberOfLines() - 1))
 	{
 	PushUndoStep
 		(
-		  $this
+		  $buffer
 		, "\$buffer->DeleteLine($a_line_to_delete_index) ;"
 		, [
 		    "\$buffer->SetModificationPosition($a_line_to_delete_index, 0) ;"
@@ -771,11 +957,11 @@ else
 	{
 	#deleting last line 
 	my $previous_line = $a_line_to_delete_index - 1 ;
-	my $end_of_previous_line = $this->GetLineLength($previous_line) ;
+	my $end_of_previous_line = $buffer->GetLineLength($previous_line) ;
 	
 	PushUndoStep
 		(
-		  $this
+		  $buffer
 		, "\$buffer->DeleteLine($a_line_to_delete_index) ;"
 		, [
 		    "\$buffer->SetModificationPosition($previous_line, $end_of_previous_line) ;"
@@ -785,8 +971,8 @@ else
 		) ;
 	}
 	
-$this->{NODES}->DeleteNode($a_line_to_delete_index) if $this->GetNumberOfLines() > 1 ;
-$this->MarkBufferAsEdited() ;
+$buffer->{NODES}->DeleteNode($a_line_to_delete_index) if $buffer->GetNumberOfLines() > 1 ;
+$buffer->MarkBufferAsEdited() ;
 }
 
 #-------------------------------------------------------------------------------
@@ -807,81 +993,52 @@ This lets you define your own indentation strategy. See  B<IndentNewLine>.
 
 =cut
 
-my $this                  = shift ;
+my $buffer                  = shift ;
 my $use_smart_indentation = shift || SMART_INDENTATION ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "InsertNewLine(\$buffer, $use_smart_indentation) ;", '   #', '# undo for InsertNewLine($use_smart_indentation)', '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, "InsertNewLine(\$buffer, $use_smart_indentation) ;", '   #', '# undo for InsertNewLine($use_smart_indentation)', '   ') ;
 
-my ($modification_line, $modification_character) = $this->GetModificationPosition() ;
+my ($modification_line, $modification_character) = $buffer->GetModificationPosition() ;
 
-my $this_line = $this->GetLine($modification_line) ;
-my $this_line_text = $this_line->{TEXT} ;
+my $buffer_line = $buffer->GetLine($modification_line) ;
+my $buffer_line_text = $buffer_line->{TEXT} ;
 
 my $next_line_text = '' ;
 
-if($modification_character < length $this_line_text)
+if($modification_character < length $buffer_line_text)
 	{
-	$next_line_text = substr($this_line_text, $modification_character) ;
+	$next_line_text = substr($buffer_line_text, $modification_character) ;
 	}
 
-$this_line_text = substr($this_line_text, 0, $modification_character) ;
+$buffer_line_text = substr($buffer_line_text, 0, $modification_character) ;
 								
-$this_line->{TEXT} = $this_line_text ;
-$this->{NODES}->InsertAfter($modification_line,  {TEXT => $next_line_text} ) ;
+$buffer_line->{TEXT} = $buffer_line_text ;
+$buffer->{NODES}->InsertAfter($modification_line,  {TEXT => $next_line_text} ) ;
 
-$this->SetModificationPosition($modification_line + 1, 0) ;
+$buffer->SetModificationPosition($modification_line + 1, 0) ;
 
 PushUndoStep
 	(
-	$this
+	$buffer
 	, "\$buffer->InsertNewLine($use_smart_indentation) ;"
 	, '$buffer->Backspace(1) ;'	
 	) ;
 
-$this->IndentNewLine($modification_line + 1) if $use_smart_indentation ;
+$buffer->IndentNewLine($modification_line + 1) if $use_smart_indentation ;
 
-$this->MarkBufferAsEdited() ;
-}
-
-#-------------------------------------------------------------------------------
-
-sub IndentNewLine
-{
-
-=head2 IndentNewLine
-
-If Insert or InsertNewLine is called with a SMART_INDENTATION argument,
-B<IndentNewLine> is called. This lets you define your own indentation strategy.
-
-  sub my_indenter
-  {
-  # modification position is set at the new line 
-  
-  my $this = shift ; # the buffer
-  my $line_index = shift ; # usefull if we indent depending on previous lines
-  
-  $this->Insert('   ') ;  # silly indentation
-  $this->MarkBufferAsEdited() ;
-  }
-
-  $buffer->ExpandWith('IndentNewLine', \&my_indenter) ;
-  $buffer->Insert("hi\nThere\nWhats\nYour\nName\n") ;
-  
-  is($buffer->GetLineText(1), "   There", "Same text") ;
-
-=cut
-
-my $this = shift ;
-my $line_index = shift ;
-
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "\$buffer->IndentNewLine($line_index) ;", '   #', '# undo for \$buffer->IndentNewLine() ;', '   ') ;
+$buffer->MarkBufferAsEdited() ;
 }
 
 #-------------------------------------------------------------------------------
 
 sub Stringify
 {
-# quotes a string or an array of string so it can be used as perl code
+
+=head2 Stringify
+
+Quotes a string or an array of string so it can be serialized in perl code
+
+=cut
 
 my $text_to_stringify = shift ;
 $text_to_stringify = '' unless defined $text_to_stringify ;
@@ -935,8 +1092,8 @@ NO_SMART_INDENTATION is defined in Text::Editor::Vip::Buffer::Constants.
 
 =cut
 
-my $this                  = shift ;
-my $text_to_insert        = shift ;
+my $buffer                  = shift ;
+my $text_to_insert        = shift || '' ;
 my $use_smart_indentation = shift || SMART_INDENTATION ;
 
 my @text_to_insert ;
@@ -954,12 +1111,12 @@ my $stringified_text_to_insert = Stringify($text_to_insert);
 
 my $undo_block = new Text::Editor::Vip::CommandBlock
 			(
-			$this
+			$buffer
 			, "\$buffer->Insert(\"$stringified_text_to_insert\", $use_smart_indentation) ;", '   #'
 			, "# undo for \$buffer->Insert(\"$stringified_text_to_insert\", $use_smart_indentation)", '   '
 			) ;
 
-$this->DeleteSelection() ;
+$buffer->DeleteSelection() ;
 
 for(@text_to_insert)
 	{
@@ -967,19 +1124,19 @@ for(@text_to_insert)
 		{
 		if("\n" eq $_)
 			{
-			$this->InsertNewLine($use_smart_indentation) ;
+			$buffer->InsertNewLine($use_smart_indentation) ;
 			}
 		else
 			{
-			my $line_ref = \($this->GetLine($this->GetModificationLine())->{TEXT}) ;
-			my $modification_character = $this->GetModificationCharacter() ;
+			my $line_ref = \($buffer->GetLine($buffer->GetModificationLine())->{TEXT}) ;
+			my $modification_character = $buffer->GetModificationCharacter() ;
 			my $line_length = length($$line_ref) ;
 			
-			#padding
-			if($modification_character - $line_length)
+			#do we need padding
+			if($modification_character - $line_length > 0)
 				{
-				$this->SetModificationCharacter($line_length) ;
-				$this->Insert(' ' x ($modification_character - $line_length)) ;
+				$buffer->SetModificationCharacter($line_length) ;
+				$buffer->Insert(' ' x ($modification_character - $line_length)) ;
 				}
 				
 			# insert characters
@@ -990,16 +1147,16 @@ for(@text_to_insert)
 			
 			PushUndoStep
 				(
-				$this
+				$buffer
 				, "\$buffer->Insert(\"$stringified_text_to_insert\", $use_smart_indentation) ;"
 				, "\$buffer->Delete($text_to_insert_length) ;"
 				) ;
 				
-			$this->SetModificationCharacter($modification_character + length()) ;
+			$buffer->SetModificationCharacter($modification_character + length()) ;
 			}
 		}
 		
-	$this->MarkBufferAsEdited() ;
+	$buffer->MarkBufferAsEdited() ;
 	}
 }
 
@@ -1007,21 +1164,15 @@ for(@text_to_insert)
 
 1 ;
 
-=head1 NAME
+=head1 PLUGINS
 
-Text::Editor::Vip::Buffer - Editing engine
+Vip::Buffer has a very simple pluggin system. You can add a function to  the buffer with
+L<ExpandWith>, L<LoadAndExpandWith> and  L<ExpandedWithOrLoad>. The functions
+added through plugins are made available to the instance, calling the plugin sub, only. 
 
-=head1 SYNOPSIS
+Think of it as a late inheritence that does the job it needs to do.
 
-  use Text::Editor::Vip::Buffer ;
-  my $buffer = new Text::Editor::Vip::Buffer() ;
-  
-=head1 DESCRIPTION
-
-This module implements the core functionality for an editing engine. It knows about 
-selection,  undo and plugins.
-
-=head1 USAGE
+Perl is full of wonders.
 
 =head1 BUGS
 

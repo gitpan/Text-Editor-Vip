@@ -19,8 +19,57 @@ $VERSION     = 0.01;
 
 #-------------------------------------------------------------------------------
 
+=head1 NAME
+
+Text::Editor::Vip::CommandBlock - Allows grouping of do and undo commands 
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::CommandBlock
+
+  my $undo_block = new Text::Editor::Vip::CommandBlock
+  			(
+  			$buffer
+  			, "\$buffer->Insert(\"$stringified_text_to_insert\", $use_smart_indentation) ;", '   #'
+  			, "# undo for \$buffer->Insert(\"$stringified_text_to_insert\", $use_smart_indentation)", '   '
+  			) ;
+
+=head1 DESCRIPTION
+
+Text::Editor::Vip::CommandBlock allows grouping of undo blocks by automatically manipulating
+and decrementing the do and undo stack prefix. See L<DoUndoRedo.pm>
+
+=cut
+
+#----------------------------------------------------------------------------
+
 sub new
 {
+
+=head2 new
+
+Creates a new instance of Text::Editor::Vip::CommandBlock. See L<SYNOPSIS> for and example.
+
+B<new> takes five arguments:
+
+=over 2
+
+=item * A buffer object
+
+=item * A do command
+
+=item * An indentation string for the do buffer
+
+=item * An undo command
+
+=item * An indentation string for the undo buffer
+
+=back
+
+See L<DoUndoRedo.pm> to understand how this is used
+
+=cut
+
 my ($class, $buffer, $do, $do_prefix, $undo, $undo_prefix) = @_;
 
 $do ||= '' ;
@@ -44,6 +93,16 @@ return ($this);
 
 sub DESTROY
 {
+
+=head2 DESTROY
+
+This sub is automatically called by perl when a command block goes out of scope. This sub
+will decrement the do/undo stack level.
+
+This sub is private and should only be called by perl.
+
+=cut
+
 my $this = shift ;
 
 DecrementUndoStackLevel($this->{BUFFER}, $this->{DO_PREFIX}, $this->{UNDO_PREFIX}) ;
@@ -52,32 +111,6 @@ DecrementUndoStackLevel($this->{BUFFER}, $this->{DO_PREFIX}, $this->{UNDO_PREFIX
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::CommandBlock - 
-
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip::CommandBlock
-
-=head1 DESCRIPTION
-
-Stub documentation for this module was created by ExtUtils::ModuleMaker.
-It looks like the author of the extension was negligent enough
-to leave the stub unedited.
-
-Blah blah blah.
-
-
-=head1 USAGE
-
-
-=head1 BUGS
-
-
-=head1 SUPPORT
-
 
 =head1 AUTHOR
 

@@ -21,10 +21,10 @@ $VERSION     = 0.01;
 
 sub InsertFile
 {
-my $this        = shift ;
+my $buffer        = shift ;
 my $a_file_name = shift ;
 
-my $undo_block = new Text::Editor::Vip::CommandBlock($this, "# InsertFile('$a_file_name')", '   ', "# undo for InsertFile('$a_file_name')", '   ') ;
+my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, "# InsertFile('$a_file_name')", '   ', "# undo for InsertFile('$a_file_name')", '   ') ;
 
 my $file_read_ok = 0 ;
 
@@ -33,12 +33,12 @@ if(open(SOURCE_CODE, "<", $a_file_name))
 	my @text = <SOURCE_CODE> ;
 	close(SOURCE_CODE) ;
 	
-	$this->Insert(\@text, NO_SMART_INDENTATION) ;
+	$buffer->Insert(\@text, NO_SMART_INDENTATION) ;
 	$file_read_ok = 1 ;
 	}
 else
 	{
-	$this->PrintError("Can't open $a_file_name : $!") ;
+	$buffer->PrintError("Can't open $a_file_name : $!") ;
 	}
 
 return($file_read_ok) ;

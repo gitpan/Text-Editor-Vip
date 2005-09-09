@@ -1,5 +1,12 @@
 Revision history for Perl module Text::Editor::Vip
 
+0.02_1 Sat Sep 8 2005
+	ADDED: Some documentation
+	MOVED: Indenter in own plugin and documented how to add indenters
+	FIXED: problem in selection
+	ADDED: most buffer functionality from Smed (previous editor)
+	ADDED: a few hundred tests
+
 0.01_2 Sat Aug 13 2005
 	ADDED: refactored some of my old code into Vip
 	ADDED: a test suite
