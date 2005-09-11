@@ -16,10 +16,35 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::GetWord- Vip::Buffer pluggin
+
+=head1 SYNOPSIS
+ 
+  $buffer->Insert(' word1 word_2 3 word4') ;
+  $buffer->SetModificationCharacter(1) ;
+  is($buffer->GetCurrentWord() , 'word1', 'GetCurrentWord') ;
+  
+=head1 DESCRIPTION
+
+Plugin for Vip::Buffer.
+
+=head1 FUNCTIONS
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub GetAlphanumericFilter
 {
+
+=head2 GetAlphanumericFilter
+
+Returns the regex set with L<SetAlphanumericFilter> or the default regex B<qr![a-zA-Z_0-9]+!>.
+
+=cut
+
 my $buffer = shift ;
 
 return
@@ -33,6 +58,13 @@ return
 
 sub SetAlphanumericFilter
 {
+
+=head2 SetAlphanumericFilter
+
+Sets the regex used by this plugin.
+
+=cut
+
 my $buffer = shift ;
 $buffer->{'Text::Editor::Vip::Buffer::Plugins::GetWord::ALPHANUMERIC_FILTER'} = shift ;
 }
@@ -41,6 +73,19 @@ $buffer->{'Text::Editor::Vip::Buffer::Plugins::GetWord::ALPHANUMERIC_FILTER'} = 
 
 sub GetFirstWord
 {
+
+=head2 GetFirstWord
+
+Returns the first word matching the word regex in the B<line> passed as argument or the current
+modification line if none.
+
+  $buffer->GetFirstWord(125) ; 
+  $buffer->GetFirstWord() ; #in the current line
+
+Returns the word( or undef if none found) and its position in the line.
+
+=cut
+
 my $buffer = shift ;
 my $line_index = shift ;
 
@@ -48,37 +93,68 @@ $line_index = $buffer->GetModificationLine() unless defined $line_index ;
 
 my $current_line_text = $buffer->GetLineText($line_index) ;
 my $character_regex   = $buffer->GetAlphanumericFilter() ;
-my ($first_word) = $current_line_text =~ /\W*($character_regex)/ ;
 
-return($first_word) ;
+$current_line_text =~ /^(\W*)($character_regex)/ ;
+
+my $length = defined $1 ? length($1) : defined($2) ? 0 : undef ;
+
+return($2, $length) ;
 }
 
 #-------------------------------------------------------------------------------
 
 sub GetPreviousWord
 {
+
+=head2 GetPreviousWord
+
+Returns the previous word matching the word regex in the the current modification line if none.
+Returns the word( or undef if none found) and its position in the line.
+
+=cut
+
 my $buffer = shift ;
 
 my $text = $buffer->GetLineText($buffer->GetModificationLine()) ; 
 
 #what if current character is outside the text length?
-#~ my $corrected_selection_start_character = $selection_start_character < $line_length ? $selection_start_character : $line_length ;
+#my $corrected_selection_start_character = $selection_start_character < $line_length ? $selection_start_character : $line_length ;
 
 my $current_character_index = $buffer->GetModificationCharacter() ;
+$current_character_index = length($text) if $current_character_index > length($text) ;
+
 my $character_regex         = $buffer->GetAlphanumericFilter() ;
 
 my $left_side  = reverse substr($text, 0, $current_character_index) ;
 
-my ($previous_word) = $left_side =~ /\W*($character_regex)/ ;
-$previous_word = reverse $previous_word if $previous_word ;
+$left_side =~ /^(\W*)($character_regex)/ ;
 
-return($previous_word) ;
+my $previous_word = reverse $2 if defined $2 ;
+
+my $position ;
+if(defined $previous_word)
+	{
+	my $non_word_length = defined $1 ? length($1) : 0 ;
+	
+	$position = $current_character_index - ($non_word_length + length($previous_word)) ;
+	}
+
+
+
+return($previous_word, $position) ;
 }
 
 #-------------------------------------------------------------------------------
 
 sub GetCurrentWord
 {
+
+=head GetCurrentWord
+
+Returns the word at the modification position or undef if no word is found.
+
+=cut
+
 my $buffer = shift ;
 
 my $modification_character = $buffer->GetModificationCharacter() ;
@@ -139,6 +215,13 @@ return($current_word) ;
 
 sub GetPreviousAlphanumeric
 {
+
+=head2 GetPreviousAlphanumeric
+
+Get all the characters matching the aphanumeric regex from the current position and backwards.
+
+=cut
+
 my $buffer = shift ;
 
 # Get all string contents from 0  to the cursor position and flip it round
@@ -167,6 +250,13 @@ else
 
 sub GetNextAlphanumeric
 {
+
+=head2 GetNextAlphanumeric
+
+Get all the characters matching the aphanumeric regex from the current position.
+
+=cut
+
 my $buffer = shift ;
 
 my $modification_character = $buffer->GetModificationCharacter() ;
@@ -179,7 +269,7 @@ return if $modification_character > $current_line_length ;
 my $line = substr
 		(
 		$buffer->GetLineText($buffer->GetModificationLine())
-		, $buffer->GetModificationCharacter()
+		, $modification_character 
 		) ;
 		
 my $alphanumeric_filter = $buffer->GetAlphanumericFilter() ;
@@ -191,17 +281,6 @@ return($postfix) ;
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::GetWord- Vip::Buffer pluggin
-
-=head1 SYNOPSIS
- 
-  
-=head1 DESCRIPTION
-
-plugin for Vip::Buffer
 
 =head1 AUTHOR
 

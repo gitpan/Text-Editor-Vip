@@ -70,7 +70,7 @@ $text = <<EOT ;
 something
 EOT
 
-# invalid end position, saty put
+# invalid end position, stay put
 $buffer->Reset() ;
 $buffer->Insert($text) ;
 $buffer->SetModificationPosition(7, 10) ;

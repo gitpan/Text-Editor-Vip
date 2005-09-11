@@ -16,12 +16,28 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::Selecton- Add extra selection commands to Vip::Buffer
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::Buffer
+  
+=head1 DESCRIPTION
+
+Adds Selection commands to the buffer.
+
+=head1 Functions
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub IsSelectionEmpty
 {
 
-=head2
+=head2 IsSelectionEmpty
 
 =cut
 
@@ -35,7 +51,7 @@ return($buffer->{SELECTION}->IsEmpty()) ;
 sub ClearSelection
 {
 
-=head2
+=head2 ClearSelection
 
 =cut
 
@@ -48,7 +64,7 @@ return($buffer->{SELECTION}->Clear()) ;
 sub SetSelectionAnchor($$) # Expects line and character
 {
 
-=head2
+=head2 SetSelectionAnchor
 
 =cut
 
@@ -74,7 +90,7 @@ return($buffer->{SELECTION}->SetAnchor($line, $character)) ;
 sub SetSelectionLine($$) # Expects line and character
 {
 
-=head2
+=head2 SetSelectionLine
 
 =cut
 
@@ -100,7 +116,7 @@ return($buffer->{SELECTION}->SetLine(@_)) ;
 sub GetSelectionBoundaries
 {
 
-=head2
+=head2 GetSelectionBoundaries
 
 =cut
 
@@ -113,7 +129,7 @@ return($buffer->{SELECTION}->GetBoundaries()) ;
 sub GetSelectionStartLine
 {
 
-=head2
+=head2 GetSelectionStartLine
 
 =cut
 
@@ -126,7 +142,7 @@ return($buffer->{SELECTION}->GetStartLine()) ;
 sub GetSelectionStartCharacter
 {
 
-=head2
+=head2 GetSelectionStartCharacter
 
 =cut
 
@@ -139,7 +155,7 @@ return($buffer->{SELECTION}->GetStartCharacter()) ;
 sub GetSelectionEndLine
 {
 
-=head2
+=head2 GetSelectionEndLine
 
 =cut
 
@@ -152,7 +168,7 @@ return($buffer->{SELECTION}->GetEndLine()) ;
 sub GetSelectionEndCharacter
 {
 
-=head2
+=head2 GetSelectionEndCharacter
 
 =cut
 
@@ -165,8 +181,12 @@ return($buffer->{SELECTION}->GetEndCharacter()) ;
 sub IsCharacterSelected($$) # Expects a line and a character index
 {
 
-=head2
+=head2 IsCharacterSelected
 
+Returns 'true' if the  character is within the boundaries of the selection.
+
+  $buffer->IsCharacterSelected($line, $character) ;
+  
 =cut
 
 my $buffer = shift ;
@@ -180,6 +200,10 @@ sub IsLineSelected($)
 
 =head2
 
+Returns 'true' if the  line is within the boundaries of the selection.
+
+  $buffer->IsLineSelected($line) ;
+  
 =cut
 
 my $buffer = shift ;
@@ -191,7 +215,7 @@ return($buffer->{SELECTION}->IsLineSelected(@_)) ;
 sub SelectAll
 {
 
-=head2
+=head2 SelectAll
 
 =cut
 
@@ -212,7 +236,7 @@ $buffer->SetSelectionLine
 sub SetSelectionAnchorAtCurrentPosition
 {
 
-=head2
+=head2 SetSelectionAnchorAtCurrentPosition
 
 =cut
 
@@ -229,7 +253,9 @@ $buffer->SetSelectionAnchor
 sub ExtendSelection
 {
 
-=head2
+=head2 ExtendSelection
+
+Extends the selection to the current modification position.
 
 =cut
 
@@ -246,7 +272,7 @@ $buffer->SetSelectionLine
 sub ExtendSelectionToEndOfLine
 {
 
-=head2
+=head2 ExtendSelectionToEndOfLine
 
 =cut
 
@@ -263,7 +289,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionToEndOfBuffer
 {
 
-=head2
+=head2 ExtendSelectionToEndOfBuffer
 
 =cut
 
@@ -281,7 +307,7 @@ $buffer->ExtendSelectionToEndOfLine() ;
 sub ExtendSelectionToStartOfBuffer
 {
 
-=head2
+=head2 ExtendSelectionToStartOfBuffer
 
 =cut
 
@@ -298,7 +324,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionHome
 {
 
-=head2
+=head2 ExtendSelectionHome
 
 =cut
 
@@ -326,7 +352,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionLeft
 {
 
-=head2
+=head2 ExtendSelectionLeft
 
 =cut
 
@@ -346,7 +372,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionRight
 {
 
-=head2
+=head2 ExtendSelectionRight
 
 =cut
 
@@ -359,11 +385,10 @@ $buffer->ExtendSelection() ;
 
 #-----------------------------------------------------------------------
 
-
 sub ExtendSelectionUp
 {
 
-=head2
+=head2 ExtendSelectionUp
 
 =cut
 
@@ -401,7 +426,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionDown
 {
 
-=head2
+=head2 ExtendSelectionDown
 
 =cut
 
@@ -440,7 +465,9 @@ $buffer->ExtendSelection() ;
 sub SelectWord
 {
 
-=head2
+=head2 SelectWord
+
+Selects the word at the current position.
 
 =cut
 
@@ -460,7 +487,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionToBeginingOfWord
 {
 
-=head2
+=head2 ExtendSelectionToBeginingOfWord
 
 =cut
 
@@ -477,7 +504,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionToNextWord
 {
 
-=head2
+=head2 ExtendSelectionToNextWord
 
 =cut
 
@@ -494,7 +521,7 @@ $buffer->ExtendSelection() ;
 sub ExtendSelectionToPreviousWord
 {
 
-=head2
+=head2 ExtendSelectionToPreviousWord
 
 =cut
 
@@ -509,22 +536,6 @@ $buffer->ExtendSelection() ;
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::Selecton- Add extra selection commands to Vip::Buffer
-
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip::Buffer
-  
-=head1 DESCRIPTION
-
-Add movement commands to Vip::Buffer.
-
-=head1 USAGE
-
-=head1 BUGS
 
 =head1 AUTHOR
 

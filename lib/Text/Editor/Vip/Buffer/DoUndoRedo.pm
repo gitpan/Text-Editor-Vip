@@ -12,9 +12,9 @@ $VERSION     = 0.01_1;
 @EXPORT      = 
 		qw (
 		DecrementUndoStackLevel
-		GetDoBuffer
+		GetDoScript
 		GetDoPosition
-		GetUndoBuffer
+		GetUndoScript
 		IncrementUndoStackLevel
 		PushUndoStep
 		Redo
@@ -99,7 +99,7 @@ my $description = "'$sub' @ $file_name:$line" ;
 my $do_text = '' ;
 if('ARRAY' eq ref $do)
 	{
-	$do_text .= join("\n", map{"$buffer->{DO_PREFIX}$_"} @$do) ;
+	$do_text .= join(" #continued\n", map{"$buffer->{DO_PREFIX}$_"} @$do) ;
 	}
 else
 	{
@@ -112,7 +112,7 @@ push @{$buffer->{DO_STACK}}, $do_text ;
 my $undo_text = '' ;
 if('ARRAY' eq ref $undo)
 	{
-	$undo_text .= join("\n", map{"$buffer->{UNDO_PREFIX}$_"} @$undo) ;
+	$undo_text .= join(" #continued\n", map{"$buffer->{UNDO_PREFIX}$_"} @$undo) ;
 	}
 else
 	{
@@ -132,12 +132,60 @@ sub Undo
 
 Undoes the commands the commands that have been executed on a buffer.
 
+  $buffer->Undo(1) ; # undoes one high level command
+  
 =cut
 
 my $buffer = shift ;
-my $number_of_steps = shift ;
+my $number_of_undo_steps = shift ;
 
-die "Unimplemented\n" ;
+# not very effective to copy what could be a huge undo stack
+# specialy since we modify it directely later and it's trivial to write better !
+my $undo_command_list = $buffer->GetUndoCommandList() ;
+
+my $undo_steps = 0 ;
+my $uncommented_undo_script = '' ;
+my $comments = 0 ;
+
+while(defined (my $undo_step = shift @$undo_command_list) && $number_of_undo_steps)
+	{
+	$undo_steps++ ;
+	
+	if($undo_step =~ /^\s*#/)
+		{
+		$comments++ ;
+		}
+	else
+		{
+		$uncommented_undo_script .= "$undo_step\n" ;
+		}
+	
+	unless($undo_step =~ /^\s/)
+		{
+		#~ $buffer->PrintPositionData() ;
+		#~ diag "Undo steps: $undo_steps $comments comments\n"  ;
+		#~ diag "$uncommented_undo_script\n*******\n" ;
+		
+		# move do stuff to redo stack
+		my $position = $buffer->GetDoPosition() ;
+		
+		my @redo_step = @{$buffer->{DO_STACK}}[$position - $undo_steps .. $position - 1] ;
+		unshift @{$buffer->{REDO_STACK}}, @redo_step ;
+		
+		# run undo script
+		$buffer->Do($uncommented_undo_script) ;
+		
+		# remove newly added commands from do and undo stack
+		splice(@{$buffer->{DO_STACK}}, ($position - $undo_steps) );
+		splice(@{$buffer->{UNDO_STACK}}, ($position - $undo_steps) );
+		
+		$uncommented_undo_script = '' ;
+		$undo_steps = 0 ;
+		$comments = 0 ;
+		
+		$number_of_undo_steps-- ;
+		}
+	}
 }
 
 #-------------------------------------------------------------------------------
@@ -147,11 +195,10 @@ sub GetDoPosition
 
 =head2 GetDoPosition
 
-Gets the current index of the do command list. This index can be later passes to L<GetUndoBuffer> to
+Gets the current index of the do command list. This index can be later passes to L<GetUndoScript> to
 get a selected amount of undo commands.
 
 This index can also be used to get a selected amound of do commands to implement a macro facility.
-
 
   my $start_position = $buffer->GetDoPosition() ;
 
@@ -159,10 +206,10 @@ This index can also be used to get a selected amound of do commands to implement
   $buffer->DoEvenMoreStuff() ;
   
   # get scripts that would undo everything since we got the do position
-  $undo = $buffer->GetUndoBuffer($start_position) ;
+  $undo = $buffer->GetUndoScript($start_position) ;
   
   # get scripts that correspond sto what has been done since we got the do position
-  $do = $buffer->GetDoBuffer($start_position) ;
+  $do = $buffer->GetDoScript($start_position) ;
 
 =cut
 
@@ -173,10 +220,10 @@ return(scalar(@{$buffer->{DO_STACK}})) ;
 
 #-------------------------------------------------------------------------------
 
-sub GetUndoBuffer
+sub GetUndoScript
 {
 
-=head2 GetUndoBuffer
+=head2 GetUndoScript
 
 This sub is given a start and and end index. those indexes are used to retrieve undo commands.
 
@@ -198,15 +245,42 @@ my @undo_buffer = @{$buffer->{UNDO_STACK}}[$start .. $end] ;
 
 my($modification_line, $modification_character) = $buffer->GetModificationPosition() ;
 
-return("#\n# Current position: $modification_line, $modification_character\n#\n" . join("\n", @undo_buffer) . "\n") ;
+return("# Current position: $modification_line, $modification_character\n" . join("\n", @undo_buffer) . "\n") ;
 }
 
 #-------------------------------------------------------------------------------
 
-sub GetDoBuffer
+sub GetUndoCommandList
 {
 
-=head2 GetDoBuffer
+=head2 GetUndoCommandList
+
+This sub is given a start and and end index. those indexes are used to retrieve undo commands.
+
+If not arguments are passed, the start index will be set to zero (first undo command) and the last available
+undo command. Thus returning a list of all the commands in the undo stack.
+
+See L<GetDoPosition>
+
+=cut
+
+my $buffer = shift ;
+
+my $start =  shift || 0 ;
+my $end = shift || $#{$buffer->{UNDO_STACK}} ;
+
+my @undo_command_list = @{$buffer->{UNDO_STACK}}[$start .. $end] ;
+@undo_command_list = reverse @undo_command_list;
+
+return(\@undo_command_list) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetDoScript
+{
+
+=head2 GetDoScript
 
 This sub is given a start and and end index. those indexes are used to retrieve do commands.
 
@@ -227,16 +301,86 @@ return(join("\n",@{$buffer->{DO_STACK}}[$start .. $end]) . "\n") ;
 
 #-------------------------------------------------------------------------------
 
+sub GetDoCommandList
+{
+
+=head2 GetDoCommandList
+
+This sub is given a start and and end index. those indexes are used to retrieve do commands.
+
+If not arguments are passed, the start index will be set to zero (first do command) and the last available
+do command. Thus returning a list of all the commands in the do stack.
+
+See L<GetDoPosition>
+
+=cut
+
+my $buffer = shift ;
+
+my $start =  shift || 0 ;
+my $end =  shift || $#{$buffer->{DO_STACK}} ;
+
+my @do_command_list = @{$buffer->{DO_STACK}}[$start .. $end] ;
+
+return(\@do_command_list) ;
+}
+
+#-------------------------------------------------------------------------------
+
 sub Redo
 {
 
 =head2 Redo
 
-Redoes the commands the commands that have been executed on a buffer.
+Redoes the commands that have been undone.
 
 =cut
 
 my $buffer = shift ;
+my $number_of_redo_steps = shift ;
+
+for( 1 .. $number_of_redo_steps)
+	{
+	# do this inline to avoid using memory!
+	my @redo_command_list = @{$buffer->{REDO_STACK}} ;
+
+	my $uncommented_redo_script = shift @redo_command_list ;
+	my $redo_steps = 1 ;
+	my $comments = 0 ;
+		
+	my $in_same_command = 1 ;
+	while(defined (my $redo_step = shift @redo_command_list) && $in_same_command)
+		{
+		if($redo_step =~ /^\s/)
+			{
+			$redo_steps++ ;
+			
+			if($redo_step =~ /^\s+#/)
+				{
+				$comments++ ;
+				}
+			else
+				{
+				$uncommented_redo_script .= "$redo_step\n" ;
+				}
+			}
+		else
+			{
+			unshift @redo_command_list, $redo_step ;
+			$in_same_command = 0 ;
+			}
+		}
+		
+	#~ $buffer->PrintPositionData() ;
+	#~ diag "redo steps: $redo_steps $comments comments\n"  ;
+	#~ diag "$uncommented_redo_script\n*******\n" ;
+	
+	# run redo script
+	$buffer->Do($uncommented_redo_script) ;
+	
+	# remove  commands from redo stack
+	splice(@{$buffer->{REDO_STACK}}, 0, $redo_steps);
+	}
 }
 
 #-------------------------------------------------------------------------------

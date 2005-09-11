@@ -16,12 +16,28 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::InsertDelete- Vip::Buffer plugin
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+Text::Editor::Vip::Buffer::Plugins::InsertConstruct- Vip::Buffer plugin
+
+=head1 FUNCTIONS
+
+=cut
+
 #-----------------------------------------------------------------------
 
 sub SetText
 {
 
-=head2
+=head2 SetText
+
+Sets the buffers text.
 
 =cut
 
@@ -41,8 +57,10 @@ $buffer->Insert($new_text) ;
 sub InsertNewLineBeforeCurrent
 {
 
-=head2
+=head2 InsertNewLineBeforeCurrent
 
+Inserts a blank new line before the current line. Modification position is not changed.
+ 
 =cut
 
 my $buffer = shift ;
@@ -62,7 +80,9 @@ $buffer->SetModificationCharacter($modification_character) ;
 sub DeleteToBeginingOfWord
 {
 
-=head2
+=head2 DeleteToBeginingOfWord
+
+Deletes from the current position to the begining of the word.
 
 =cut
 
@@ -70,10 +90,6 @@ my $buffer = shift ;
 $buffer->ExpandedWithOrLoad('ExtendSelectionToBeginingOfWord', 'Text::Editor::Vip::Buffer::Plugins::Selection') ;
 
 $buffer->ExtendSelectionToBeginingOfWord() ;
-
-#~ $buffer->ExpandWith('Text::Editor::Vip::Buffer::Test') ;
-#~ $buffer->PrintPositionData('DeleteToBeginingOfWord::ExtendSelectionToBeginingOfWord') ;
-
 $buffer->DeleteSelection() ;
 }
 
@@ -82,7 +98,9 @@ $buffer->DeleteSelection() ;
 sub DeleteToEndOfWord
 {
 
-=head2
+=head2 DeleteToEndOfWord
+
+Deletes from the current position to the end of the word.
 
 =cut
 
@@ -97,7 +115,9 @@ $buffer->DeleteSelection() ;
 sub InsertTab
 {
 
-=head2
+=head2 InsertTab
+
+Inserts a tab at the current position. If there is a aselection, the whole selection is indented.
 
 =cut
 
@@ -138,7 +158,9 @@ else
 sub RemoveTabFromSelection
 {
 
-=head2
+=head2 RemoveTabFromSelection
+
+If there is a selection, it is outdented.
 
 =cut
 
@@ -177,16 +199,6 @@ unless($buffer->{SELECTION}->IsEmpty())
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::InsertDelete- Vip::Buffer plugin
-
-=head1 SYNOPSIS
-
-=head1 DESCRIPTION
-
-Text::Editor::Vip::Buffer::Plugins::InsertConstruct- Vip::Buffer plugin
 
 =head1 AUTHOR
 

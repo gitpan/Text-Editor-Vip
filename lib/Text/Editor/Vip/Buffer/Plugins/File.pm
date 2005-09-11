@@ -19,8 +19,33 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::File - File handling plugin for Vip::Buffer
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::Plugins::File
+  
+=head1 DESCRIPTION
+
+This modules adds File reading and wrtting capability to Vip::Buffer
+
+=head1 FUNCTIONS
+
+=cut
+
+#---------------------------------------------------------------------------
+
 sub InsertFile
 {
+
+=head2 InsertFile
+
+Inserts a file at the current modification position.
+
+=cut
+
 my $buffer        = shift ;
 my $a_file_name = shift ;
 
@@ -44,29 +69,9 @@ else
 return($file_read_ok) ;
 }
 
-sub SetLineTerminationType
-{
-}
-
-#-------------------------------------------------------------------------------
+#---------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::File - File handling plugin for Vip::Buffer
-
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip::Plugins::File
-  
-=head1 DESCRIPTION
-
-This modules adds File reading and wrtting capability to Vip::Buffer
-
-=head1 USAGE
-
-=head1 BUGS
 
 =head1 AUTHOR
 

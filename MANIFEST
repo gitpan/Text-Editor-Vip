@@ -6,6 +6,8 @@ Changes
 Build.PL
 Makefile.PL
 vip_test.pl
+generate_pod.pl
+perl_style.css
 
 lib/Text/Editor/Vip.pm
 

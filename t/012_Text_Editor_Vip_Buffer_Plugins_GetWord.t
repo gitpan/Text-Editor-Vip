@@ -14,53 +14,53 @@ use Text::Editor::Vip::Buffer ;
 my $buffer = Text::Editor::Vip::Buffer->new();
 $buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Plugins::GetWord') ;
 
-is($buffer->GetFirstWord() , undef, 'GetFirstWord') ;
+is_deeply([$buffer->GetFirstWord()], [undef, undef], 'GetFirstWord') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4') ;
-is($buffer->GetFirstWord() , 'word1', 'GetFirstWord') ;
+is_deeply([$buffer->GetFirstWord()] , ['word1', 1], 'GetFirstWord') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' *שש$*ש*] word1 word_2 3 word4') ;
-is($buffer->GetFirstWord() , 'word1', 'GetFirstWord preceded with garbage') ;
+is_deeply([$buffer->GetFirstWord()] , ['word1', 10] , 'GetFirstWord preceded with garbage') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4') ;
 $buffer->SetModificationCharacter(50) ;
-is($buffer->GetFirstWord() , 'word1', 'GetFirstWord with current character outside the text') ;
+is_deeply([$buffer->GetFirstWord()] , ['word1', 1], 'GetFirstWord with current character outside the text') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4') ;
 $buffer->GetSelection()->Set(0, 3, 0, 7) ;
-is($buffer->GetFirstWord() , 'word1', 'GetFirstWord with selection') ;
+is_deeply([$buffer->GetFirstWord()] , ['word1', 1], 'GetFirstWord with selection') ;
 
 # GetPreviousWord
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4') ;
-is($buffer->GetPreviousWord() , 'word4', 'GetPreviousWord') ;
+is_deeply([$buffer->GetPreviousWord()] , ['word4', 16], 'GetPreviousWord') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4 ') ;
-is($buffer->GetPreviousWord() , 'word4', 'GetPreviousWord') ;
+is_deeply([$buffer->GetPreviousWord()] , ['word4', 16], 'GetPreviousWord') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4  *שש$*ש*]') ;
-is($buffer->GetPreviousWord() , 'word4', 'GetPrevioustWord preceded with garbage') ;
+is_deeply([$buffer->GetPreviousWord()] , ['word4', 16], 'GetPrevioustWord preceded with garbage') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4  *שש$*ש*]') ;
 $buffer->SetModificationCharacter(0) ;
-is($buffer->GetPreviousWord() , undef, 'GetPrevioustWord') ;
+is_deeply([$buffer->GetPreviousWord()] , [undef, undef], 'GetPrevioustWord') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4 *$**') ;
 $buffer->SetModificationCharacter(50) ;
-is($buffer->GetPreviousWord() , 'word4', 'GetPreviousWord with current character outside the text') ;
+is_deeply([$buffer->GetPreviousWord()] , ['word4', 16], 'GetPreviousWord with current character outside the text') ;
 
 $buffer->Reset() ;
 $buffer->Insert(' word1 word_2 3 word4') ;
 $buffer->GetSelection()->Set(0, 3, 0, 7) ;
-is($buffer->GetPreviousWord() , 'word4', 'GetPreviousWordwith selection') ;
+is_deeply([$buffer->GetPreviousWord()] , ['word4', 16], 'GetPreviousWordwith selection') ;
 
 # GetCurrentWord
 $buffer->Reset() ;

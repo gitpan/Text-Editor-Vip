@@ -1,5 +1,11 @@
 Revision history for Perl module Text::Editor::Vip
 
+0.03_1 
+	ADDED: tests for List
+	ADDED: more plugin documentation
+	CHANGED: word movement plugin also returns new find position
+	ADDED: Undo and Redo sub. Those still need optimisation.
+
 0.02_1 Sat Sep 8 2005
 	ADDED: Some documentation
 	MOVED: Indenter in own plugin and documented how to add indenters

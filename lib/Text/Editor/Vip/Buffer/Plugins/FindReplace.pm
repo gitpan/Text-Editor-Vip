@@ -19,6 +19,45 @@ $VERSION     = 0.01;
 use constant CASE_SENSITIVE => 0 ;
 use constant IGNORE_CASE    => 1 ;
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::FindReplace- Find and replace functionality plugin for Vip::Buffer
+
+=head1 SYNOPSIS
+
+  is_deeply([$buffer->FindOccurence('1', 0, 0)], [0, 5, '1'], 'Found occurence 1') ;
+  is($buffer->GetText(), $text, 'Text still the same') ;
+  is($buffer->GetSelectionText(), '', 'GetSelectionText empty') ;
+  
+  #FindNextOccurence
+  $buffer->SetModificationPosition(0, 0) ;
+  is_deeply([$buffer->FindNextOccurence()], [0, 5, '1'], 'FindNextOccurence') ;
+  
+  $buffer->SetModificationPosition(0, 5) ;
+  is_deeply([$buffer->FindNextOccurence()], [0, 9, '1'], 'FindNextOccurence') ;
+  
+  # FindNextOccurenceForCurrentWord
+  $buffer->SetModificationPosition(0, 0) ;
+  is_deeply([$buffer->FindNextOccurenceForCurrentWord()], [1, 0, 'line'], 'FindNextOccurenceForCurrentWord') ;
+  
+  $buffer->SetModificationPosition(1, 0) ;
+  is_deeply([$buffer->FindNextOccurenceForCurrentWord()], [2, 0, 'line'], 'FindNextOccurenceForCurrentWord') ;
+  
+  $buffer->SetModificationPosition(4, 0) ;
+  
+  is_deeply([$buffer->FindNextOccurenceForCurrentWord()], [undef, undef, undef], 'FindNextOccurenceForCurrentWord') ;
+  
+  # Regex search
+  is_deeply([$buffer->FindOccurence(qr/..n[a-z]/, 0, 0)], [0, 0, 'line'], 'Found occurence with regex') ;
+
+=head1 DESCRIPTION
+
+Find and replace functionality plugin for Vip::Buffer
+
+=head1 FUNCTIONS
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub FindOccurence
@@ -26,9 +65,21 @@ sub FindOccurence
 
 =head2 FindOccurence
 
-#* Find doesn't set selection anymore, add example somewhere
-	#~ $buffer->SetModificationPosition($match_line, $match_position + length($match_word)) ;
-	#~ $buffer->{SELECTION}->Set($match_line, $match_position,$match_line, $match_position + length($match_word)) ;
+Finds the text matching the B<regex> argument starting at the B<line> and B<character> arguments.
+If no B<line> argument is passed, the modification position is used.
+
+This sub returns an array containing: ($match_line, $match_position, $match_word)
+
+The Selection is not modified by this sub. To set the modification at the match position:
+
+  my ($match_line, $match_position, $match_word) = $buffer->FindOccurence($regex, $line, $character) ;
+  
+  if(defined $match_line)
+	{
+	  $buffer->SetModificationPosition($match_line, $match_position + length($match_word)) ;
+	  $buffer->{SELECTION}->Set($match_line, $match_position,$match_line, $match_position + length($match_word)) ;
+	}
+
 =cut
 
 my $buffer       = shift ;
@@ -88,7 +139,9 @@ return($match_line, $match_position, $match_word) ;
 sub FindNextOccurence
 {
 
-=head2
+=head2 FindNextOccurence
+
+Find the next occurence matching the search regex.
 
 =cut
 
@@ -113,7 +166,9 @@ $buffer->FindOccurence
 sub FindNextOccurenceForCurrentWord
 {
 
-=head2
+=head2 FindNextOccurenceForCurrentWord
+
+Finds the next occurence for the word at the modification position.
 
 =cut
 
@@ -130,7 +185,9 @@ $buffer->FindNextOccurence() ;
 sub FindOccurenceBackwards
 {
 
-=head2
+=head2 FindOccurenceBackwards
+
+Searches for the B<regex> going backwards in the buffer. Intricate regexes might not work.
 
 =cut
 
@@ -199,7 +256,9 @@ return($match_line, $match_position, $match_word) ;
 sub FindPreviousOccurence
 {
 
-=head2
+=head2 FindPreviousOccurence
+
+Searches for the next occurence going backwards in the buffer
 
 =cut
 
@@ -221,7 +280,9 @@ $buffer->FindOccurenceBackwards
 sub FindPreviousOccurenceForCurrentWord
 {
 
-=head2
+=head2 FindPreviousOccurenceForCurrentWord
+
+Finds the previous occurence for the word at the modification position.
 
 =cut
 
@@ -238,7 +299,14 @@ $buffer->FindOccurenceBackwards($buffer->{'Text::Editor::Vip::Buffer::Plugins::F
 sub ReplaceOccurence
 {
 
-=head2
+=head2 ReplaceOccurence
+
+Finds a match for the B<search_regex> argument and replaces it with the B<replacement_regex>. Parenthesis can be
+be used to assign $1, $2, ... those can be used in the B<replacement_regex>.
+
+  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'xx$1') ;
+  
+This sub returns an array containing: ($match_line, $match_position, $match_word, $replacement)
 
 =cut
 
@@ -275,41 +343,6 @@ return($match_line, $match_position, $match_word, $replaced_by) ;
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::FindReplace- Find and replace functionality plugin for Vip::Buffer
-
-=head1 SYNOPSIS
-
-  is_deeply([$buffer->FindOccurence('1', 0, 0)], [0, 5, '1'], 'Found occurence 1') ;
-  is($buffer->GetText(), $text, 'Text still the same') ;
-  is($buffer->GetSelectionText(), '', 'GetSelectionText empty') ;
-  
-  #FindNextOccurence
-  $buffer->SetModificationPosition(0, 0) ;
-  is_deeply([$buffer->FindNextOccurence()], [0, 5, '1'], 'FindNextOccurence') ;
-  
-  $buffer->SetModificationPosition(0, 5) ;
-  is_deeply([$buffer->FindNextOccurence()], [0, 9, '1'], 'FindNextOccurence') ;
-  
-  # FindNextOccurenceForCurrentWord
-  $buffer->SetModificationPosition(0, 0) ;
-  is_deeply([$buffer->FindNextOccurenceForCurrentWord()], [1, 0, 'line'], 'FindNextOccurenceForCurrentWord') ;
-  
-  $buffer->SetModificationPosition(1, 0) ;
-  is_deeply([$buffer->FindNextOccurenceForCurrentWord()], [2, 0, 'line'], 'FindNextOccurenceForCurrentWord') ;
-  
-  $buffer->SetModificationPosition(4, 0) ;
-  
-  is_deeply([$buffer->FindNextOccurenceForCurrentWord()], [undef, undef, undef], 'FindNextOccurenceForCurrentWord') ;
-  
-  # Regex search
-  is_deeply([$buffer->FindOccurence(qr/..n[a-z]/, 0, 0)], [0, 0, 'line'], 'Found occurence with regex') ;
-
-=head1 DESCRIPTION
-
-Find and replace functionality plugin for Vip::Buffer
 
 =head1 AUTHOR
 

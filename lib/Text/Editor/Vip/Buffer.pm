@@ -108,6 +108,7 @@ my $buffer = shift ;
 	, DO_STACK                     => []
 	, UNDO_PREFIX                  => ''
 	, UNDO_STACK                   => []
+	, REDO_STACK                   => []
 	
 	, MODIFICATION_LINE            => 0
 	, MODIFICATION_CHARACTER       => 0
@@ -123,7 +124,8 @@ $buffer->{NODES}->Push({TEXT => ''}) ;
 
 =head2 Reset
 
-Empties the buffer from it's contents as if it was newly created. L<Plugins> are still plugged into the buffer.
+Empties the buffer from it's contents as if it was newly created. L<Plugins> are still plugged into the buffer. This
+is very practical when writting tests.
 
   $buffer->Reset() ;
 
@@ -269,7 +271,9 @@ The second argument is optional, if it is not given, Text::Editor::Vip::Buffer w
   $buffer->ExpandWith( 'GotoBufferStart') ;
   $buffer->GotoBufferStart() ;
 
-DEV. WARNING! This is going to give us troubles when using it for macros that are saved to disk!
+DEV. WARNING!
+	This is going to give us troubles when using it for macros that are saved to disk!
+	we must find a way to replug when loading the macro back
 
 =cut
 
@@ -334,6 +338,7 @@ else
 
 sub PrintError
 {
+
 =head2 PrintError
 
 This sub is called when an error occures. It should be overriden by the buffer user. We use this

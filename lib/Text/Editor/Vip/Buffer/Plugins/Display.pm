@@ -15,16 +15,62 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::Display - Text position to display position utilities
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::Buffer::Dispaly
+  
+=head1 DESCRIPTION
+
+This module let's you define a tab size and convert text and display positions.
+
+Tab size is set to 8 by default.
+
+=head1 FUNCTIONS
+
+=cut
+
 #------------------------------------------------------------------------------
 
-sub SetTabSize { $_[0]->{'Text::Editor::Vip::Buffer::Plugins::Display::TAB_SIZE'} = $_[1] ;}
-sub GetTabSize { return ($_[0]->{'Text::Editor::Vip::Buffer::Plugins::Display::TAB_SIZE'} || 8) ;}
+sub SetTabSize
+{
+
+=head2  SetTabSize
+
+Sets the tab size used.
+
+=cut 
+
+$_[0]->{'Text::Editor::Vip::Buffer::Plugins::Display::TAB_SIZE'} = $_[1] ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetTabSize
+{
+
+=head2 GetTabSize
+
+Return the tab size
+
+=cut 
+
+return ($_[0]->{'Text::Editor::Vip::Buffer::Plugins::Display::TAB_SIZE'} || 8) ;
+}
 
 #-------------------------------------------------------------------------------
 
 sub GetCharacterPositionInText
 {
-# given a display position, returns the the position in text
+
+=head2 GetCharacterPositionInText
+
+Given a display position, returns the the position in text
+
+=cut 
 
 my ($buffer, $line_index, $position, $line_text) = @_ ;
 
@@ -63,6 +109,13 @@ else
 
 sub GetCharacterDisplayPosition
 {
+
+=head2 GetCharacterDisplayPosition
+
+Given a position in the text, returns the the display position
+
+=cut 
+
 my ($buffer, $line_index, $position, $line_text) = @_ ;
 
 $line_text = $buffer->GetLineText($line_index) ;
@@ -76,22 +129,6 @@ return(($line_text =~ tr/\t/\t/ * ($tab_size - 1)) + $position) ;
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::Display - Text position to display position utilities
-
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip::Buffer::Dispaly
-  
-=head1 DESCRIPTION
-
-This module let's you define a tab size and compute text to displa positions.
-
-=head1 USAGE
-
-=head1 BUGS
 
 =head1 AUTHOR
 

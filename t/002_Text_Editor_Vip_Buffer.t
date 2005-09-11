@@ -260,7 +260,7 @@ $buffer = Text::Editor::Vip::Buffer->new();
 $buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
 $buffer->SetModificationPosition(0, 0) ;
 
-my $do_buffer = $buffer->GetDoBuffer() ;
+my $do_buffer = $buffer->GetDoScript() ;
 
 $buffer->Delete(2) ;
 is($buffer->GetNumberOfLines(), 4, 'right line count') ;
@@ -269,7 +269,7 @@ is($buffer->GetLineText(0), 'ne 1', 'right line text') ;
 is(TestDoUndo('$buffer->Delete(2) ;', $do_buffer), 1, 'test undo after Delete') ;
 #----
 
-$do_buffer = $buffer->GetDoBuffer() ; # include the deletion above
+$do_buffer = $buffer->GetDoScript() ; # include the deletion above
 
 $buffer->Delete(4) ;
 is($buffer->GetNumberOfLines(), 4, 'right line count') ;
@@ -280,7 +280,7 @@ is(TestDoUndo('$buffer->Delete(4) ;', $do_buffer), 1, 'test undo after Delete') 
 #----
 
 # Delete at end of line
-$do_buffer = $buffer->GetDoBuffer() ; # include the deletion above
+$do_buffer = $buffer->GetDoScript() ; # include the deletion above
 
 $buffer->Delete(1) ;
 is($buffer->GetNumberOfLines(), 3, 'right line count') ;
@@ -291,7 +291,7 @@ is(TestDoUndo('$buffer->Delete(1) ;', $do_buffer), 1, 'test undo after Delete') 
 #----
 
 $buffer->SetModificationPosition(0, $buffer->GetLineLength(0)) ;
-$do_buffer = $buffer->GetDoBuffer() ; # include the deletion above
+$do_buffer = $buffer->GetDoScript() ; # include the deletion above
 
 $buffer->Delete(1) ;
 is($buffer->GetNumberOfLines(), 2, 'right line count') ;
@@ -305,7 +305,7 @@ $buffer = Text::Editor::Vip::Buffer->new();
 $buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
 $buffer->SetModificationPosition(0, $buffer->GetLineLength(0) + 2) ;
 
-$do_buffer = $buffer->GetDoBuffer() ;
+$do_buffer = $buffer->GetDoScript() ;
 
 $buffer->Delete(1) ;
 is($buffer->GetNumberOfLines(), 3, 'right line count') ;

@@ -26,6 +26,7 @@ Text::Editor::Vip::Buffer::List - lines container
 
 =head1 DESCRIPTION
 
+Container class used by B<Text::Editor::Vip::Buffer> to hold the buffers text. Elements aer accessed by index.
 
 =head1 MEMBER FUNCTIONS
 
@@ -35,6 +36,13 @@ Text::Editor::Vip::Buffer::List - lines container
 
 sub new
 {
+
+=head2 new
+
+Create an empty container. Takes no arguments.
+
+=cut
+
 my $invocant = shift ;
 my $class = ref($invocant) || $invocant ;
 
@@ -45,6 +53,13 @@ return( bless [], $class );
 
 sub GetNumberOfNodes
 {
+
+=head2 GetNumberOfNodes
+
+Returns the number of contained elements.
+
+=cut
+
 return(scalar(@{$_[0]})) ;
 }
 
@@ -52,13 +67,32 @@ return(scalar(@{$_[0]})) ;
 
 sub Push
 {
+
+=head2 Push
+
+Adds an element at the end of the the container. Returns it's index.
+
+=cut
+
 push @{$_[0]}, $_[1] ;
+return($#{$_[0]}) ;
 }
 
 #-------------------------------------------------------------------------------
 
 sub GetNodeData
 {
+
+=head2 GetNodeData
+
+Returns an element or undef if the element doesn't exist.
+
+  $list = new Text::Editor::Vip::Buffer::List() ;
+  $list->Push(['some_element']) ;
+  my $element = $list->GetNodeData(0) ;
+
+=cut
+
 my $this         = shift ;
 my $a_node_index = shift ;
 
@@ -77,6 +111,17 @@ else
 
 sub SetNodeData
 {
+
+=head2 SetNodeData
+
+Sets the element at the given index. The element must exist.
+
+  my $index = 0 ;
+  my $element = [] ;
+  $list->SetNodeData($index, $element) ;
+
+=cut
+
 my $this         = shift ;
 my $a_node_index = shift ;
 my $a_node_data  = shift ;
@@ -97,6 +142,16 @@ else
 
 sub DeleteNode
 {
+
+=head2 DeleteNode
+
+Removes the lement at the given index. all elements after the given index are shifted up in the list. The element
+must exist.
+
+  $list->DeleteNode($index) ;
+
+=cut
+
 my $this         = shift ;
 my $a_node_index = shift ;
 
@@ -126,6 +181,15 @@ else
 
 sub InsertAfter
 {
+
+=head2 InsertAfter
+
+Creates and inserts an element in the list after the given index. The element at the given index must exist.
+
+  $list->InsertAfter($index, $element_data) ;
+
+=cut
+
 my $this         = shift ;
 my $a_node_index = shift ;
 my $a_node_data  = shift ;
@@ -141,6 +205,8 @@ if(0 != $this->GetNumberOfNodes())
 			, 0
 			, $a_node_data
 			) ;
+			
+		return($a_node_index + 1) ;
 		}
 	else
 		{
@@ -157,6 +223,15 @@ else
 
 sub InsertBefore
 {
+
+=head2 InsertBefore
+
+Creates and inserts an element in the list before the given index. The element at the given index must exist.
+
+  $list->InsertBefore($index, $element_data) ;
+
+=cut
+
 my ($this, $a_node_index, $a_node_data) = @_ ;
 
 if(0 != $this->GetNumberOfNodes())
@@ -176,6 +251,8 @@ if(0 != $this->GetNumberOfNodes())
 				, 0
 				, $a_node_data
 				) ;
+				
+			return($a_node_index) ;
 			}
 		}
 	else

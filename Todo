@@ -1,8 +1,13 @@
 TODO list for Perl module Text::Editor::Vip
 ===========================================
 
+* make Undo/Redo more memory effective
+
+* what do we do with the redo stack when adding something to the do stack?
+	=> erase? keep in synch with the previous do?
+
 * View base class and its pluggins
-	keybiard handlers
+	keyboard handlers
 
 * Application and setup
 	Adding tools to application

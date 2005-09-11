@@ -18,6 +18,27 @@ $VERSION     = 0.01;
 
 use Text::Editor::Vip::Buffer::Constants ;
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::InsertConstruct- Vip::Buffer plugin
+
+=head1 SYNOPSIS
+
+  $buffer->InsertAlignedWithTab("XXXXX") ;
+
+  $buffer->Insert($text) ;
+  $buffer->SetModificationPosition(0, 4) ;
+  $buffer->SetSelectionBoundaries(1, 0, 3, 0) ;
+  $buffer->InsertConstruct($text_to_insert) ;
+
+=head1 DESCRIPTION
+
+Text::Editor::Vip::Buffer::Plugins::InsertConstruct- Vip::Buffer plugin
+
+=head1 FUNCTIONS
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub InsertAlignedWithTab
@@ -55,9 +76,45 @@ $buffer->Insert(\@text_to_insert , NO_SMART_INDENTATION) ;
 
 sub InsertConstruct
 {
-# insert a construct at the cursor position or around the selection if any
-# if a selection is present the  construct is aligned on the block and the 
-# selection is indented
+
+=head2  InsertConstruct
+
+Inserts a construct at the cursor position or around the selection if any  if a selection is present
+the  construct is aligned on the block and the  selection is indented.
+
+  $if_construct= <<EOT ;
+  if()
+  \t{
+  \t}
+  else
+  \t{
+  \tSELECTION
+  \t}
+  EOT
+
+  $buffer->Insert(<<EOT) ;
+  line 1 - 1
+  line 2 - 2 2
+  line 3 - 3 3 3
+  EOT
+  
+  $buffer->SetModificationPosition(3, 4) ;
+  $buffer->SetSelectionBoundaries(1, 0, 2, 0) ; # select the second line
+  $buffer->InsertConstruct($if_construct) ;
+
+Buffer content is now
+
+  line 1 - 1
+  if()
+  \t{
+  \t}
+  else
+  \t{
+  \tline 2 - 2 2 # this line was moved in the construct and aligned
+  \t}
+  line 3 - 3 3 3
+
+=cut
 
 my $buffer    = shift ;
 my $construct = shift || return ;
@@ -128,16 +185,6 @@ else
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::InsertConstruct- Vip::Buffer plugin
-
-=head1 SYNOPSIS
-
-=head1 DESCRIPTION
-
-Text::Editor::Vip::Buffer::Plugins::InsertConstruct- Vip::Buffer plugin
 
 =head1 AUTHOR
 

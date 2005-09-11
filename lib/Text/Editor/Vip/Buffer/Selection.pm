@@ -196,9 +196,7 @@ unless($buffer->{SELECTION}->IsEmpty())
 				, sub { $buffer->PrintError("Mark selection please\n") ; }
 				) ;
 				
-	$buffer->SetModificationLine($start_line) ;
-	$buffer->SetModificationCharacter($start_character) ;
-	
+	$buffer->SetModificationPosition($start_line, $start_character) ;
 	$buffer->{SELECTION}->Clear() ;
 	}
 }

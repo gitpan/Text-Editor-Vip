@@ -21,10 +21,40 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Test - Support functions for testing
+
+=head1 SYNOPSIS
+
+  use Test::More qw(no_plan);
+  
+  use Text::Editor::Vip::Buffer ;
+  use Text::Editor::Vip::Buffer::Test ;
+  
+  my $buffer = new Text::Editor::Vip::Buffer() ;
+  
+  is(TestDoUndo('$buffer->DeleteLine(3) ;', '$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;'), 1, 'test undo after DeleteLine') ;
+
+=head1 DESCRIPTION
+
+Support functions for testing
+
+=head1 FUNCTIONS
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub DiagBuffers
 {
+
+=head2 DiagBuffers
+
+Displays the content of the buffer via the diag function.
+
+=cut
+
 my ($package, $file_name, $line) = caller() ;
 
 my $buffer  = shift ;
@@ -37,12 +67,18 @@ diag("\n$comment\n>>>>>\n" . $buffer->GetText() . "<<<<<\n") ;
 
 sub TestSerialisation
 {
-# uses Compare buffer to check the contents are equal
+
+=head2 TestSerialisation
+
+Extract the do buffer from the buffer, applies it to another buffer and compares the buffers for equality
+
+=cut
+
 
 my $buffer = shift ;
 my $new_buffer = $buffer->new() ;
 
-my $do_buffer = $buffer->GetDoBuffer() ;
+my $do_buffer = $buffer->GetDoScript() ;
 if($new_buffer->Do($do_buffer))
 	{
 	unless(CompareBuffers("Doing (original, new)", $buffer, $new_buffer))
@@ -66,6 +102,15 @@ return(1) ;
 
 sub TestDoUndo
 {
+
+=head2 TestDoUndo
+
+Given a script, obtained from a do buffer for example, this function checks the do and undo buffer creation.
+
+An optional setup script can be passed. It is executed first.
+
+=cut
+
 my $script = shift ;
 
 my $buffer_original = new Text::Editor::Vip::Buffer();
@@ -88,8 +133,8 @@ my $error = 0 ;
 
 if($result)
 	{
-	my $do_buffer = $buffer_done->GetDoBuffer($pos) ;
-	my $undo_buffer = $buffer_done->GetUndoBuffer($pos) ;
+	my $do_buffer = $buffer_done->GetDoScript($pos) ;
+	my $undo_buffer = $buffer_done->GetUndoScript($pos) ;
 	
 	# test "do" perl script
 	($result, $message) = $buffer_undone->Do($do_buffer) ;
@@ -173,6 +218,13 @@ return(!$error) ;
 
 sub CompareBuffers
 {
+
+=head2 CompareBuffers
+
+Compares two buffers for equality. debugging information is displayed if the buffers aren't equal.
+
+=cut
+
 # help functin to compare two buffers
 
 my ($message, $lhb, $rhb) = @_ ;
@@ -209,6 +261,14 @@ return(1) ;
 
 sub CompareText
 {
+
+=head2 CompareText
+
+Compares the passed text with the content of the buffer. Returns '' if the text is equal to the buffer
+content. Returns a b<diff > if the texts won't match.
+
+=cut
+
 my $buffer = shift ;
 my $text = shift ;
 
@@ -222,6 +282,13 @@ return($diff) ;
 
 sub PrintPositionData
 {
+
+=head2 PrintPositionData
+
+Displays the modification and selection information.
+
+=cut
+
 my $buffer = shift ;
 my $message = shift || '' ;
 
@@ -235,31 +302,6 @@ print "\n\tSelection: " . join(", ", $buffer->GetSelectionBoundaries()) . "\n" ;
 #-------------------------------------------------------------------------------
 
 1;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Test - Support functions for testing
-
-=head1 SYNOPSIS
-
-  use Test::More qw(no_plan);
-  
-  use Text::Editor::Vip::Buffer ;
-  use Text::Editor::Vip::Buffer::Test ;
-  
-  my $buffer = new Text::Editor::Vip::Buffer() ;
-  
-  is(TestDoUndo('$buffer->DeleteLine(3) ;', '$buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;'), 1, 'test undo after DeleteLine') ;
-
-=head1 DESCRIPTION
-
-Support functions for testing
-
-=head1 USAGE
-
-=head1 BUGS
-
-=head1 SUPPORT
 
 =head1 AUTHOR
 

@@ -16,12 +16,28 @@ $VERSION     = 0.01;
 %EXPORT_TAGS = ();
 }
 
+=head1 NAME
+
+Text::Editor::Vip::Buffer::Plugins::Movements- Add movement commands to Vip::Buffer
+
+=head1 SYNOPSIS
+
+  use Text::Editor::Vip::Buffer
+  
+=head1 DESCRIPTION
+
+Add movement commands to Vip::Buffer. The commands use tab and a virtual buffer
+
+=head1 FUNCTIONS
+
+=cut
+
 #-------------------------------------------------------------------------------
 
 sub SetModificationPositionAtSelectionStart
 {
 
-=head2
+=head2 SetModificationPositionAtSelectionStart
 
 =cut
 
@@ -38,7 +54,9 @@ unless($buffer->{SELECTION}->IsEmpty())
 sub GetFirstNonSpacePosition
 {
 
-=head2
+=head2 GetFirstNonSpacePosition
+
+Finds the first non space position at the B<line> argument or the current line if B<line> is not passed.
 
 =cut
 
@@ -64,8 +82,9 @@ else
 sub MoveToTopOfBuffer
 {
 
-=head2
+=head2 MoveToTopOfBuffer
 
+Clears the buffer and Sets the modification position at 0,0.
 =cut
 
 my $buffer = shift ;
@@ -79,7 +98,9 @@ $buffer->SetModificationCharacter(0) ;
 sub MoveToEndOfBuffer
 {
 
-=head2
+=head2 MoveToEndOfBuffer
+
+Clears the selection and sets the modification position after the last character of the last line.
 
 =cut
 
@@ -94,7 +115,9 @@ $buffer->MoveToEndOfLine() ;
 sub MoveToEndOfLine
 {
 
-=head2
+=head2 MoveToEndOfLine
+
+Moves to the end of the line or the end of the selection if any.
 
 =cut
 
@@ -116,7 +139,9 @@ else
 sub MoveToEndOfSelectionNoClear
 {
 
-=head2
+=head2 MoveToEndOfSelectionNoClear
+
+Moves the modification to the end of the selection without clearing the selection.
 
 =cut
 
@@ -181,7 +206,9 @@ unless($buffer->{SELECTION}->IsEmpty())
 sub MoveToEndOfLineNoSelectionClear
 {
 
-=head2
+=head2 MoveToEndOfLineNoSelectionClear
+
+Moves to the end of the current line without clearing the selection (if any).
 
 =cut
 
@@ -202,7 +229,7 @@ sub MoveHome # jumping frog
 
 =head2 MoveHome
 
-Jumping frog!
+Moves the modification position to the begining of the line or to the first word (jumping frog style)
 
 =cut
 
@@ -232,7 +259,9 @@ else
 sub MoveToStartOfSelectionNoClear
 {
 
-=head2
+=head2 MoveToStartOfSelectionNoClear
+
+Sets the modification position at the start of the selection, if any, without clearing the selection.
 
 =cut
 
@@ -255,7 +284,9 @@ unless($buffer->{SELECTION}->IsEmpty())
 sub MoveLeft
 {
 
-=head2
+=head2 MoveLeft
+
+Moves left, clearing the selection if any.
 
 =cut
 
@@ -271,7 +302,9 @@ $buffer->{SELECTION}->Clear() ;
 sub MoveLeftNoSelectionClear
 {
 
-=head2
+=head2 MoveLeftNoSelectionClear
+
+Moves left, no selection clearing is done.
 
 =cut
 
@@ -308,7 +341,9 @@ else
 sub MoveRight
 {
 
-=head2
+=head2 MoveRight
+
+Moves Right, clearing the selection if any.
 
 =cut
 
@@ -324,7 +359,9 @@ $buffer->{SELECTION}->Clear() ;
 sub MoveRightNoSelectionClear
 {
 
-=head2
+=head2 MoveRightNoSelectionClear
+
+Moves right without clearing the selection.
 
 =cut
 
@@ -361,7 +398,9 @@ else
 sub MoveUp
 {
 
-=head2
+=head2 MoveUp
+
+Moves up, clearing the selection.
 
 =cut
 
@@ -375,6 +414,13 @@ $buffer->{SELECTION}->Clear() ;
 
 sub MoveUpNoSelectionClear
 {
+
+=head2 MoveUpNoSelectionClear
+
+Moves up, without clearing the selection.
+
+=cut
+
 my $buffer = shift ;
 
 $buffer->ExpandedWithOrLoad('GetCharacterDisplayPosition', 'Text::Editor::Vip::Buffer::Plugins::Display') ;
@@ -414,7 +460,9 @@ else
 sub MoveDown
 {
 
-=head2
+=head2 MoveDown
+
+Moves the modification position down, clearing the selection.
 
 =cut
 
@@ -428,7 +476,9 @@ $buffer->{SELECTION}->Clear() ;
 sub MoveDownNoSelectionClear
 {
 
-=head2
+=head2 MoveDownNoSelectionClear
+
+Moves the modification position down, without clearing the selection. Moves to the end of the selection if any.
 
 =cut
 
@@ -471,7 +521,9 @@ else
 sub MoveToBeginingOfWord
 {
 
-=head2
+=head2 MoveToBeginingOfWord
+
+Moves the modification position to the begining of the current word, clearing the selection.
 
 =cut
 
@@ -486,7 +538,10 @@ return($buffer->MoveToBeginingOfWordNoSelectionClear()) ;
 sub MoveToBeginingOfWordNoSelectionClear
 {
 
-=head2
+=head2 MoveToBeginingOfWordNoSelectionClear
+
+Moves the modification position to the begining of the current word, without clearing the selection. Return 'true' if 
+the modification position was changed, 'false' if there was no current word.
 
 =cut
 
@@ -526,7 +581,9 @@ else
 sub MoveToEndOfWord
 {
 
-=head2
+=head2 MoveToEndOfWord
+
+Moves the modification position to the end of the current word, clearing the selection.
 
 =cut
 
@@ -541,7 +598,10 @@ $buffer->{SELECTION}->Clear() ;
 sub MoveToEndOfWordNoSelectionClear
 {
 
-=head2
+=head2 MoveToEndOfWordNoSelectionClear
+
+Moves the modification position to the end of the current word, without clearing the selection. Return 'true' if 
+the modification position was changed, 'false' if there was no current word.
 
 =cut
 
@@ -591,7 +651,10 @@ else
 sub MoveToNextWord
 {
 
-=head2
+=head2 MoveToNextWord
+
+Sets the modification position at the begining of the next word, potentialy on another line, and clears
+the selection.
 
 =cut
 
@@ -606,7 +669,10 @@ $buffer->{SELECTION}->Clear() ;
 sub MoveToNextWordNoSelectionClear
 {
 
-=head2
+=head2 MoveToNextWordNoSelectionClear
+
+Sets the modification position at the begining of the next word, potentialy on another line, without clearing
+the selection.
 
 =cut
 
@@ -669,7 +735,10 @@ else
 sub MoveToPreviousWord
 {
 
-=head2
+=head2 MoveToPreviousWord
+
+Sets the modification position at the begining of the previous word, potentialy on another line, and clears
+the selection.
 
 =cut
 
@@ -684,7 +753,10 @@ $buffer->{SELECTION}->Clear() ;
 sub MoveToPreviousWordNoSelectionClear
 {
 
-=head2
+=head2 MoveToPreviousWordNoSelectionClear
+
+Sets the modification position at the begining of the previous word, potentialy on another line, without clearing
+the selection.
 
 =cut
 
@@ -762,22 +834,6 @@ else
 #-------------------------------------------------------------------------------
 
 1 ;
-
-=head1 NAME
-
-Text::Editor::Vip::Buffer::Plugins::Movements- Add movement commands to Vip::Buffer
-
-=head1 SYNOPSIS
-
-  use Text::Editor::Vip::Buffer
-  
-=head1 DESCRIPTION
-
-Add movement commands to Vip::Buffer. The commands use tab and a virtual
-
-=head1 USAGE
-
-=head1 BUGS
 
 =head1 AUTHOR
 
