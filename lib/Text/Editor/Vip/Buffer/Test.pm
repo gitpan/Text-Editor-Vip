@@ -272,7 +272,13 @@ content. Returns a b<diff > if the texts won't match.
 my $buffer = shift ;
 my $text = shift ;
 
-my $diff =  diff(\($buffer->GetText()), \$text, {STYLE => 'Table'}) ;
+my $diff =  diff
+		(
+		  \($buffer->GetText())
+		, \$text
+		, {STYLE => 'Table', FILENAME_A => "Buffer", FILENAME_B => "Expected", INDEX_LABEL => "Ln"}
+		) ;
+
 $diff = "\n" . $diff unless $diff eq '' ;
 
 return($diff) ;

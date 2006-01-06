@@ -149,7 +149,7 @@ return($previous_word, $position) ;
 sub GetCurrentWord
 {
 
-=head GetCurrentWord
+=head2 GetCurrentWord
 
 Returns the word at the modification position or undef if no word is found.
 

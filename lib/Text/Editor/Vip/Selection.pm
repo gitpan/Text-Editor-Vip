@@ -409,7 +409,7 @@ if($end_line == $a_line_index)
 	}
 else
 	{
-	return($this->IslineSelected($a_line_index)) ;
+	return($this->IsLineSelected($a_line_index)) ;
 	}
 }
 

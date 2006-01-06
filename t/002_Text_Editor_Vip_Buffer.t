@@ -10,7 +10,8 @@ use Text::Diff ;
 use strict ;
 my ($text, $expected_text) = ('', undef) ;
 
-use Test::More tests => 177 ;
+use Test::More tests => 174 ;
+use Test::Exception ;
 
 BEGIN 
 {
@@ -40,14 +41,12 @@ is($buffer->IsBufferMarkedAsEdited(), 0, 'buffer not marked as edited') ;
 
 $buffer = Text::Editor::Vip::Buffer->new();
 
-eval {$buffer->PrintError("should die") ;} ;
-ok($@, 'Default method dies') ;
+dies_ok {$buffer->PrintError("should die") ;} 'Default method dies' ;
 
 my $redefined_sub_output = '' ;
 my $expected_output = 'Redefined PrintError is working' ;
 $buffer->ExpandWith('PrintError', sub {$redefined_sub_output = $_[1]}) ;
-$buffer->PrintError($expected_output) ;
-is($@, '', 'Calling added method') ;
+lives_ok {$buffer->PrintError($expected_output) ;} 'Calling added method' ;
 is($redefined_sub_output , $expected_output, 'Calling added method') ;
 
 # indenter
@@ -78,18 +77,13 @@ is($buffer->GetTabSize(), 3, 'LoadAndExpandWith suceeded') ;
 #------------------------------------------------------------------------------------------------- 
 # ExpandedWithOrLoad
 $buffer = Text::Editor::Vip::Buffer->new();
-eval{$buffer->SomeSub() ;} ;
-isnt($@, '', 'Unknown sub') ;
+dies_ok {$buffer->SomeSub() ;} 'Unknown sub' ;
 
 my $sub_exists = 0 ;
-eval
-{
 $sub_exists = $buffer->ExpandedWithOrLoad('SetTabSize', 'Text::Editor::Vip::Buffer::Plugins::Display') ;
-$buffer->SetTabSize(3) ;
-} ;
 
 is($sub_exists , 0, "sub didn't exist before module loading") ;
-is($@, '', 'Known sub') ;
+lives_ok {$buffer->SetTabSize(3) ;} 'Known sub' ;
 
 $buffer->SetTabSize(3) ;
 $sub_exists = $buffer->ExpandedWithOrLoad('SetTabSize', 'Text::Editor::Vip::Buffer::Plugins::Display') ;
@@ -121,8 +115,7 @@ $buffer->SetModificationPosition(2, 500) ;
 ($line, $character) = $buffer->GetModificationPosition() ;
 ok($line == 2 && $character == 500, 'position is OK' ) ;
 
-eval{$buffer->SetModificationPosition(10, 0) ;} ;
-ok($@, 'SetModificationPosition died') ;
+dies_ok {$buffer->SetModificationPosition(10, 0) ;} 'SetModificationPosition died' ;
 
 #------------------------------------------------------------------------------------------------- 
 # Attributes
@@ -181,8 +174,7 @@ $buffer->SetModificationLine(4) ;
 is($buffer->GetLineText(), 'line 5 - 5 5 5 5 5', 'Getting a specific line') ;
 
 # set an erroneous modification line which 
-eval{$buffer->SetModificationLine(10) ; } ; # this calls PrintError which dies 
-ok($@, 'PrintError died') ;
+dies_ok {$buffer->SetModificationLine(10) ; } 'PrintError died' ;
 
 # the modification line didn't change
 is($buffer->GetLineText(), 'line 5 - 5 5 5 5 5', 'Getting the current line') ;
@@ -196,14 +188,12 @@ $buffer->SetModificationLine(4) ;
 is($buffer->GetLineLength(), length('line 5 - 5 5 5 5 5'), 'Getting a specific line') ;
 
 # set an erroneous modification line which 
-eval{$buffer->SetModificationLine(10) ; } ; # this calls PrintError which dies 
-ok($@, 'PrintError died') ;
+dies_ok {$buffer->SetModificationLine(10) ; } 'PrintError died' ;
 
 # the modification line didn't change
 is($buffer->GetLineLength(), length('line 5 - 5 5 5 5 5'), 'Getting the current line') ;
 
-eval { $buffer->GetLineLength(10) ; } ;
-ok($@, 'PrintError died') ;
+dies_ok { $buffer->GetLineLength(10) ; } 'PrintError died' ;
 
 #------------------------------------------------------------------------------------------------- 
 # ClearLine
@@ -218,8 +208,7 @@ $buffer->SetModificationLine(1) ;
 $buffer->ClearLine() ;
 is($buffer->GetLineLength(), 0, 'Clearing the modification line') ;
 
-eval { $buffer->ClearLine(10) ; } ;
-ok($@, 'PrintError died') ;
+dies_ok { $buffer->ClearLine(10) ; } 'PrintError died' ;
 
 # test undo after ClearLine
 is(TestDoUndo('$buffer->ClearLine(0) ;', '$buffer->Insert("Line 1\nLine 2") ;'), 1, 'test undo after ClearLine') ;
@@ -240,8 +229,7 @@ $buffer->DeleteLine() ;
 is($buffer->GetNumberOfLines(), 2, 'right line count after third deletion') ;
 is($buffer->GetLineText(), 'Line 4', 'right line text after thirddeletion') ;
 
-eval { $buffer->DeleteLine(10) ; } ;
-ok($@, 'PrintError died') ;
+dies_ok { $buffer->DeleteLine(10) ; } 'PrintError died' ;
 
 
 $buffer = Text::Editor::Vip::Buffer->new();
@@ -530,18 +518,6 @@ is($result, 1, 'Valid perl') ;
 diag($message) if $result == 0 ;
 
 is($buffer->GetText(), "bar", 'buffer contains \'bar\'' ) ;
-
-TODO:
-{
-local $TODO = "Interface to todo functionality" ;
-fail($TODO) ;
-
-local $TODO = "Redo functionality" ;
-fail($TODO) ;
-
-local $TODO = "Interface to redo functionality" ;
-fail($TODO) ;
-}
 
 #------------------------------------------------------------------------------------------------- 
 # test Pluggin module loading, do, file insertion and undo

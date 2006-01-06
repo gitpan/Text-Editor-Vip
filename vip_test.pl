@@ -9,53 +9,55 @@ use Data::Hexdumper ;
 use Text::Diff ;
 
 use Test::More qw(no_plan);
+use Test::Differences ;
+use Test::Exception ;
 
 use Text::Editor::Vip::Buffer ;
 use Text::Editor::Vip::Buffer::Test ;
 
-my ($text, $expected_text) ;
+my $text = <<EOT ;
+ line 0 - 0
+  line 1 - 1
+   line 2 - 2 2
+    line 3 - 3 3 3
+     line 4 - 4 4 4 4
+
+something
+EOT
+
+for
+	(
+	[$text, undef, undef, 'l...', [3, 4, 'line'], 'undefined start position'] ,
+	[$text, -1   , -1   , 'l...', [3, 4, 'line'], 'invalid start position 1'] ,
+	[$text, 50   , 50   , 'l...', [3, 4, 'line'], 'invalid start position 2'] ,
+	[$text, 3    , -5   , 'l...', [3, 4, 'line'], 'invalid start position 3'] ,
+	[$text, 3    , 5000 , 'l...', [4, 5, 'line'], 'invalid start position 4'] ,
+	[$text, 3    , undef, 'l...', [3, 4, 'line'], 'invalid start position 5'] ,
+	[$text, undef, 5000 , 'l...', [3, 4, 'line'], 'invalid start position 6'] ,
+	[$text, 3    , undef, 'l...', [3, 4, 'line'], 'invalid start position 7'] ,
+	[$text, 1    , 1    , 'l...', [3, 4, 'line'], 'start position before boundaries'] ,
+	[$text, 5    , 7    , 'l...', [3, 4, 'line'], 'start position after boundaries'] ,
+	[$text, 3    , 5    , 'l...', [4, 5, 'line'], 'second match'] ,
+	)
+	{
+	TestFindOccurenceWithinBoundaries(@$_) ;
+	}
+
+sub TestFindOccurenceWithinBoundaries
+{
+my ($text, $start_line, $start_character, $regex, $result, $message) = @_ ;
+
+my @boundaries = (2, 4, 5, 6) ;
+my ($match_line, $match_character, $match_word, $replacement) ;
 
 my $buffer = new Text::Editor::Vip::Buffer() ;
-$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Test') ;
+$buffer->LoadAndExpandWith('Text::Editor::Vip::Buffer::Plugins::FindReplace') ;
+$buffer->Insert($text) ;
+$buffer->SetSelectionBoundaries(0, 0, 3, 3) ;
+$buffer->SetModificationPosition(0, 0) ;
 
-$buffer->Insert("line1\nline2\nline3") ;
-my $text_0 = $buffer->GetText() ;
-
-$buffer->Insert("\nline4\n") ;
-my $text_1 = $buffer->GetText() ;
-
-$buffer->SetSelectionBoundaries(1, 1, 1, 3) ;
-my $text_2 = $buffer->GetText() ;
-
-$buffer->Delete(1) ;
-my $text_3 = $buffer->GetText() ;
-
-#~ diag DumpTree($buffer->{DO_STACK}, 'Do stack:') ;
-
-$buffer->Undo(1) ;
-is($buffer->CompareText($text_2), '', 'first Undo') ;
-
-$buffer->Undo(1) ; # temporary so we can see a redo stack with to redo
-is($buffer->CompareText($text_1), '', 'second Undo') ;
-
-$buffer->Undo(1) ; # temporary so we can see a redo stack with to redo
-is($buffer->CompareText($text_0), '', 'second Undo') ;
-
-$buffer->Redo(2) ;
-is($buffer->CompareText($text_2), '', 'Redo 2 steps') ;
-
-$buffer->Redo(1) ;
-is($buffer->CompareText($text_3), '', 'Redo 1 step') ;
-
-$buffer->Undo(1) ;
-is($buffer->CompareText($text_2), '', 'first Undo again') ;
-
-$buffer->Undo(1) ;
-is($buffer->CompareText($text_1), '', 'second Undo') ;
-
-$buffer->Undo(1) ;
-is($buffer->CompareText($text_0), '', 'second Undo') ;
-
-$buffer->Redo(3) ;
-is($buffer->CompareText($text_3), '', 'Redo all') ;
+eq_or_diff([$buffer->FindOccurenceWithinBoundaries($regex, @boundaries, $start_line, $start_character )], $result, $message) ;
+eq_or_diff([$buffer->GetModificationPosition()], [0, 0], 'stay at the same position') ;
+is_deeply([$buffer->GetSelectionBoundaries()], [0, 0, 3, 3], 'unchanged selection boundaries') ;
+}
 

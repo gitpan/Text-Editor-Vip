@@ -9,7 +9,7 @@ use strict ;
 use warnings ;
 
 use Test::More tests => 14 ;
-
+use Test::Exception ;
 BEGIN 
 {
 use_ok('Text::Editor::Vip::Buffer'); 
@@ -202,8 +202,7 @@ is($buffer->CompareText($expected_text), '', 'Simple insertion') ;
 
 # selection must be for entire lines
 $buffer->SetSelectionBoundaries(1, 5, 1, 9) ;
-eval{$buffer->InsertConstruct($text_to_insert) ;} ;
-isnt($@, '', 'selection must be for entire lines') ;
+dies_ok {$buffer->InsertConstruct($text_to_insert) ;} 'selection must be for entire lines' ;
 
 
 # with one line selection

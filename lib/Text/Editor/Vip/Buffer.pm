@@ -140,7 +140,7 @@ sub ExpandedWithOrLoad
 
 =head2 ExpandedWithOrLoad
 
-See L<PLUGGINS>.
+See L<PLUGINS>.
 
 If the name passed as first argument doesn't match a sub within the object, the module, passed as second argument,
 is loaded.
@@ -189,7 +189,7 @@ sub LoadAndExpandWith
 
 =head2 LoadAndExpandWith
 
-See L<PLUGGINS>.
+See L<PLUGINS>.
 
 Loads a perl module (plugin) and adds all it functionality to the buffer
 
@@ -247,7 +247,7 @@ sub ExpandWith
 
 =head2 ExpandWith
 
-See L<PLUGGINS>.
+See L<PLUGINS>.
 
 Adds a sub to a buffer instance. 
 
@@ -1171,7 +1171,7 @@ for(@text_to_insert)
 
 =head1 PLUGINS
 
-Vip::Buffer has a very simple pluggin system. You can add a function to  the buffer with
+Vip::Buffer has a very simple plugin system. You can add a function to  the buffer with
 L<ExpandWith>, L<LoadAndExpandWith> and  L<ExpandedWithOrLoad>. The functions
 added through plugins are made available to the instance, calling the plugin sub, only. 
 

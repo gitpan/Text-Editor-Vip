@@ -1,5 +1,13 @@
 Revision history for Perl module Text::Editor::Vip
 
+0.04 
+	CHANGED: output style for CompareText (taken from Test:Differences)
+	ADDED: some missing TODO tests
+	ADDED: search within boundaries
+	CHANGED: use more Test:: modules instead for home made tests
+	ADDED: possibility to set start line and character in replace
+	
+
 0.03_1 
 	ADDED: tests for List
 	ADDED: more plugin documentation

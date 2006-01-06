@@ -11,6 +11,7 @@ use strict ;
 use warnings ;
 
 use Test::More tests => 174 ;
+use Test::Exception ;
 
 BEGIN 
 {
@@ -44,8 +45,7 @@ is($buffer->GetFirstNonSpacePosition(0), 1, 'GetFirstNonSpacePosition') ;
 is($buffer->GetFirstNonSpacePosition(5), 0, 'GetFirstNonSpacePosition empty line') ;
 is($buffer->GetFirstNonSpacePosition(6), 0, 'GetFirstNonSpacePosition line starts with character') ;
 
-eval {$buffer->GetFirstNonSpacePosition(7) ;} ;
-isnt($@, '', 'GetFirstNonSpacePosition exception') ;
+dies_ok {$buffer->GetFirstNonSpacePosition(7) ;} 'GetFirstNonSpacePosition exception' ;
 
 # SetModificationPositionAtSelectionStart
 $buffer->SetModificationPosition(2, 2) ;

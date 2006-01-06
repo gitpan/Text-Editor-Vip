@@ -8,6 +8,7 @@ use strict ;
 use warnings ;
 
 use Test::More tests => 72 ;
+use Test::Exception ;
 
 BEGIN 
 {
@@ -270,8 +271,7 @@ is_deeply([$buffer->GetModificationPosition()], [1, 0], 'InsertTab') ;
 
 $buffer->SetModificationPosition(0, 0) ;
 $buffer->SetSelectionBoundaries(4, 0, 6, 0) ;
-eval{$buffer->InsertTab() ;} ;
-isnt($@, '', 'InsertTab in non existing line') ;
+dies_ok {$buffer->InsertTab() ;} 'InsertTab in non existing line' ;
 is_deeply([$buffer->GetSelectionBoundaries()] ,[-1, -1, -1, -1], 'Selection OK') ;
 
 is($buffer->GetLineText(4), "\tline 5 - 5 5 5 5 5", 'InsertTab') ;

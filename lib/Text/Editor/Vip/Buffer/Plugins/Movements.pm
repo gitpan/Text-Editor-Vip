@@ -85,6 +85,7 @@ sub MoveToTopOfBuffer
 =head2 MoveToTopOfBuffer
 
 Clears the buffer and Sets the modification position at 0,0.
+
 =cut
 
 my $buffer = shift ;
