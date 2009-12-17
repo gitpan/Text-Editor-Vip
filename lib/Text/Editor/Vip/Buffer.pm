@@ -3,6 +3,7 @@ package Text::Editor::Vip::Buffer;
 
 use strict;
 use warnings ;
+use Data::TreeDumper ;
 
 BEGIN 
 {
@@ -18,6 +19,7 @@ $VERSION     = 0.01;
 
 #-------------------------------------------------------------------------------
 
+use Time::HiRes ;
 use Carp qw(carp confess cluck);
 use List::Util qw(min) ;
 
@@ -46,7 +48,7 @@ selection,  undo and plugins.
 
 =cut
 
-my $uid = 0 ;
+my $uid = 0 ; #well, hmm, good enough
 
 sub new
 {
@@ -98,10 +100,13 @@ Helper sub called by new. This is considerer private.
 =cut
 
 my $buffer = shift ;
+my $expansions = $buffer->{EXPANSIONS} || [] ;
 
 %$buffer = 
 	(
 	  NODES                        => new Text::Editor::Vip::Buffer::List()
+	, EXPANSIONS                   => $expansions
+	
 	, MARKED_AS_EDITED             => 0
 	
 	, DO_PREFIX                    => ''
@@ -110,6 +115,7 @@ my $buffer = shift ;
 	, UNDO_STACK                   => []
 	, REDO_STACK                   => []
 	
+	, CLIPBOARDS                   => {}
 	, MODIFICATION_LINE            => 0
 	, MODIFICATION_CHARACTER       => 0
 	, SELECTION                    => new Text::Editor::Vip::Selection()
@@ -173,11 +179,14 @@ eval "\$sub = ${class}->can('${sub_name}') ;" ;
 
 if(defined $sub)
 	{
+	push @{$buffer->{EXPANSIONS}}, {CALLER => [caller()],  LOOKING_FOR => $sub_name, FOUND => 1} ;
 	return(1) ;
 	}
 else
 	{
-	$buffer->LoadAndExpandWith($module) ;
+	$buffer->LoadAndExpandWith($module, 1) ;
+	
+	push @{$buffer->{EXPANSIONS}}, {CALLER => [caller()],  LOOKING_FOR => $sub_name, LOADING_MODULE => $module} ;
 	return(0) ;
 	}
 }
@@ -202,8 +211,9 @@ Loads a perl module (plugin) and adds all it functionality to the buffer
 
 # look at Export::Cluster, Export::Dispatch
 
-my $buffer =  shift ;
-my $module = shift ;
+my $buffer     = shift ;
+my $module     = shift ;
+my $no_history = shift ;
 
 eval "use $module ;" ;
 die __PACKAGE__ . " couldn't load '$module':\n$@\n" if $@ ;
@@ -216,6 +226,11 @@ $buffer->PushUndoStep
 		  "\$buffer->LoadAndExpandWith('$module') ;"
 		, "# undo for \$buffer->LoadAndExpandWith('$module') ;"
 		) ;
+
+unless($no_history)
+	{
+	push @{$buffer->{EXPANSIONS}}, {CALLER => [caller()],  LOADING_MODULE => $module} ;
+	}
 
 #alternative way to expend the object
 
@@ -286,19 +301,55 @@ my $class = ref($buffer) ;
 my $warning = '' ;
 local $SIG{'__WARN__'} = sub {$warning = $_[0] ;} ;
 
+#~ $DB::single = 1 ;
+
+my ($package, $file_name, $line) = caller() ;
+$package ||= '' ;
+
+my $location = "$file_name:$line" ;
+
 if($sub)
 	{
+	die __PACKAGE__ . " not a sub reference '$sub_name' at $location:\n" unless 'CODE' eq ref $sub ;
+	
 	eval "*${class}::${sub_name} = \$sub;" ;
+	push @{$buffer->{EXPANSIONS}}, {CALLER => [caller()],  SUB_REF => $sub_name} ;
 	}
 else
 	{
 	# load the named sub from the caller package
 	
-	my ($package, $file_name, $line) = caller() ;
-	$package ||= '' ;
-	
+	die __PACKAGE__ . " error exapnding with undefined named sub at $location\n" unless defined $sub_name and $sub_name ne '' ;
+
+	my $found_sub ;
+	eval "\$found_sub = ${package}->can('${sub_name}') ;" ;
+	die __PACKAGE__ . " error exapnding with named sub '$sub_name' at $location.\n" unless defined $found_sub ;
+
 	eval "*${class}::${sub_name} = \\\&$package\::${sub_name};" ;
+	die __PACKAGE__ . " error exapnding with named sub ''$sub_name' at $location:\n$@\n" if $@ ;
+
+	push @{$buffer->{EXPANSIONS}}, {CALLER => [$package, $file_name, $line],  SUB_REF_IN_CALLER_SPACE => $sub_name} ;
 	}
+}
+
+#-------------------------------------------------------------------------------
+
+sub PrintExpansionHistory
+{
+
+=head2 PrintExpansionHistory
+
+Displays the expansion done to the buffer
+
+=cut
+
+my $buffer = shift ;
+my $message = shift || '' ;
+
+my ($package, $file_name, $line) = caller() ;
+$message .= " @ '$file_name:$line'" ;
+
+print DumpTree($buffer->{EXPANSIONS}, $message) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -439,7 +490,7 @@ sub GetLineAttribute
 Retrieves  a named attribute from a line. 
 
   $buffer->SetLineAttribute(0, 'TEST', $some_data) ;
-  $retrieved_data = $buffer->GetLineAttribute(0'TEST', $some_data) ;
+  $retrieved_data = $buffer->GetLineAttribute(0, 'TEST') ;
 
 =cut
 
@@ -465,11 +516,17 @@ Used to mak the buffer as unedited You should not need to use this function.
 
 Used to query the buffer about its state. Returns (1) if the buffer was edit. (0) otherwise.
 
+=head2 GetLastEditionTImestamp
+
+Returns the time of the last edition.
+
 =cut
 
 sub IsBufferMarkedAsEdited {return($_[0]->{MARKED_AS_EDITED}) ;}
-sub MarkBufferAsEdited { $_[0]->{MARKED_AS_EDITED} = 1 ;}
+sub MarkBufferAsEdited { $_[0]->{MARKED_AS_EDITED} = 1 ; $_[0]->{EDITED_AT_TIME} = Time::HiRes::time() ;}
 sub MarkBufferAsUnedited {$_[0]->{MARKED_AS_EDITED} = 0 ;}
+
+sub GetLastEditionTImestamp {$_[0]->{EDITED_AT_TIME};}
 
 #-------------------------------------------------------------------------------
 
@@ -483,6 +540,20 @@ Returns the number of lines in the buffer.
 =cut
 
 return($_[0]->{NODES}->GetNumberOfNodes()) ;
+}
+
+#------------------------------------------------------------------------------
+
+sub GetLastLineIndex
+{
+
+=head2 GetLastfLineIndex
+
+Returns theindex of the last line. the buffer always contains at least one line thus the last line index is always 0 or more.
+
+=cut
+
+return($_[0]->{NODES}->GetNumberOfNodes() - 1) ;
 }
 
 #------------------------------------------------------------------------------
@@ -525,11 +596,11 @@ $buffer->SetModificationCharacter($character) ;
 sub OffsetModificationPosition
 {
 
-=head2 SetModificationPosition
+=head2 OffsetModificationPosition
 
-Sets the position, line and character, where the next modification will occure.
+Offset the position, line and character, where the next modification will occure. an exception is thrown if position is not valid
 
-   $buffer->SetModificationPosition(0, 15) ;
+   $buffer->OffsetModificationPosition(0, 15) ;
 
 =cut
 
@@ -546,6 +617,40 @@ my $undo_block = new Text::Editor::Vip::CommandBlock
 
 $buffer->SetModificationLine($buffer->GetModificationLine() + $line_offset) ;
 $buffer->SetModificationCharacter($buffer->GetModificationCharacter() + $character_offset) ;
+}
+
+#-------------------------------------------------------------------------------
+
+sub OffsetModificationPositionGuarded
+{
+
+=head2 OffsetModificationPositionGuarded
+
+Offsets the position, line and character, where the next modification will occure. Nothing happends if the new position is invalid
+
+   $buffer->OffsetModificationPositionGuarded(0, 15) ;
+
+=cut
+
+my ($buffer, $line_offset, $character_offset) = @_ ;
+
+my $new_line = $buffer->GetModificationLine() + $line_offset ;
+my $new_character = $buffer->GetModificationCharacter() + $character_offset ;
+
+if
+	(
+ 	   $new_line < $buffer->GetNumberOfLines()
+	&& 0 <= $new_line
+	&& 0 <= $new_character
+	)
+	{
+	$buffer->OffsetModificationPosition($line_offset, $character_offset) ;
+	return(1) ;
+	}
+else
+	{
+	return(0) ;
+	}
 }
 
 #-------------------------------------------------------------------------------
@@ -666,10 +771,10 @@ See L<GetLineText>.
 
 =cut
 
-my $buffer         = shift ;
+my $buffer       = shift ;
 my $a_line_index = shift ;
 
-return($buffer->{NODES}->GetNodeData($a_line_index)) ;
+return( $buffer->{NODES}->GetNodeData($a_line_index) ) ;
 }
 
 #-------------------------------------------------------------------------------
@@ -686,7 +791,7 @@ Returns the text of the line passes as argument or the current modification line
 
 =cut
 
-my $buffer = shift ;
+my $buffer       = shift ;
 my $a_line_index = shift ;
 
 $a_line_index = $buffer->GetModificationLine() unless defined $a_line_index ;
@@ -694,6 +799,44 @@ $a_line_index = $buffer->GetModificationLine() unless defined $a_line_index ;
 if(0 <= $a_line_index && $a_line_index < $buffer->GetNumberOfLines())
 	{
 	return($buffer->GetLine($a_line_index)->{TEXT}) ;
+	}
+else
+	{
+	$buffer->PrintError("GetLineText: Invalid line index: $a_line_index. Number of lines: " . $buffer->GetNumberOfLines(). "\n") ;
+	return('') ;
+	}
+}
+
+#-------------------------------------------------------------------------------
+
+sub GetLineTextWithNewline
+{
+
+=head2 GetLineTextWithNewline
+
+Returns the text of the line passes as argument or the current modification line if no argument is passed. A "\n" is
+appended if the line is not the last line in the buffer.
+
+  my $line_12_text = $buffer->GetLineTextWithNewline(12) ;
+  my $current_line_text = $buffer->GetLineTextWithNewline() ;
+
+=cut
+
+my $buffer       = shift ;
+my $a_line_index = shift ;
+
+$a_line_index = $buffer->GetModificationLine() unless defined $a_line_index ;
+
+if(0 <= $a_line_index && $a_line_index < $buffer->GetNumberOfLines())
+	{
+	if($a_line_index == $buffer->GetLastLineIndex())
+		{
+		return($buffer->GetLine($a_line_index)->{TEXT}) ;
+		}
+	else
+		{
+		return($buffer->GetLine($a_line_index)->{TEXT} . "\n") ;
+		}
 	}
 else
 	{
@@ -1097,10 +1240,11 @@ NO_SMART_INDENTATION is defined in Text::Editor::Vip::Buffer::Constants.
 
 =cut
 
-my $buffer                  = shift ;
-my $text_to_insert        = shift || '' ;
+my $buffer                = shift ;
+my $text_to_insert        = shift ;
 my $use_smart_indentation = shift || SMART_INDENTATION ;
 
+$text_to_insert ='' unless defined $text_to_insert ;
 my @text_to_insert ;
 
 if(ref($text_to_insert) eq 'ARRAY')

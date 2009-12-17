@@ -1,24 +1,75 @@
 TODO list for Perl module Text::Editor::Vip
 ===========================================
 
-* add Replace where replacement regex is a user sub
+replace all die with carp/onfess
+
+add tests for GetLineTextWithNewline
+
+action to create sub stub and test stub
+
+ERROR RunSubOnSelection
+	this worked!
+	$buffer->SetSelectionBoundaries(-10, 0, 1, 0) ;
+	$buffer->CopySelectionToClipboard('string') ;
+	
+	same with boudary over text limit
+	
+	=> blank lines are returned
+	
+
+RunSubOnSelection: avoid unecessary modification if the text is the same
+
+add sub: $buffer->GetSelectedText([$selection_line_index])
+
+LoadAndExpandWith shouldn' load a module more than once
+
+
+ERROR! extend selection seems to select from the begining of the buffer
+
+ERROR! modification position change doesn't remove the selection
+
+ERROR! SelectWord with string "\npackage main ;", when modificatino pos is on the first work selects next word
+
+#keep a time stamp on when the buffer was modified
+
+keep a time stamp on when a line was modified
+
+CopySelectionToClipboard
+
+set the buffer name and information
+
+all Display:: functions should take a tab and be generic
+
+test document GetTabifiedText
+
+possibility for a buffer user to set data in the buffer, perl line
+
+FileInsert should, optionaly, mark the buffer as unedited
+	=> or should it be FileReadNew ?
+
+a treedumper filter generator
+
+do/undo flushing functions
+
+#* add Replace where replacement regex is a user sub
 
 * shouldn't replaceOccurence leave the modification position unchanged?
 
 * should we consider perl replacement warnings as errors?
 
-* why aren't we using the same "namespace"?
+#* why aren't we using the same "namespace"?
 	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::SEARCH_REPLACE_REGEX'} = $search_regex ;
 	$buffer->{REPLACEMENT_REGEX} = $replacement_regex ;
 
-* die when expanding fails
+#* die when expanding fails
 	=> ExpandWith("UnexistingFunction") ;
 	=> ExpandWith("UnexistingFunction", undef or not ref to code) ;
 	
-* Log somewhere what is added and overriden in the object
+#* Log somewhere what is added and overriden in the object
 	=> within the object
 
-* Generate documentation a la cpan
+#* Generate documentation a la cpan
+	pod2projdocs
 
 * make Undo/Redo more memory effective
 
@@ -31,7 +82,13 @@ TODO list for Perl module Text::Editor::Vip
 * Application and setup
 	Adding tools to application
 
-* lexers and folding
+* lexers
+	is an editor component not a buffer component
+	multiple lexers can act on the same buffer, ie perl and html in the same buffer
+
+* folding
+	is a view component
+	
 
 * find the align equal sign written in Simrishamn
 

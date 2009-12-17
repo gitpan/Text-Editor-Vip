@@ -128,6 +128,43 @@ return(($line_text =~ tr/\t/\t/ * ($tab_size - 1)) + $position) ;
 
 #-------------------------------------------------------------------------------
 
+sub GetTabifiedText
+{
+
+# missing doc and tests
+
+my ($buffer, $line_index, $line_text, $tab_size) = @_ ;
+
+$line_text = $buffer->GetLineText($line_index) unless defined $line_text ;
+
+$tab_size = $buffer->GetTabSize() unless defined $tab_size ;
+
+my $tabified_text = '' ;
+my $distance_to_tab = 0 ;
+
+for(0 .. length($line_text) - 1)
+	{
+	$distance_to_tab = $tab_size if  $distance_to_tab  == 0 ;
+	
+	my $char = substr($line_text, $_, 1) ;
+	
+	if("\t" eq $char)
+		{
+		$tabified_text .= ' ' x $distance_to_tab ;
+		$distance_to_tab = $tab_size ;
+		}
+	else
+		{
+		$tabified_text .= $char ;
+		$distance_to_tab-- ;
+		}
+	}
+	
+return($tabified_text) ;
+}
+
+#-------------------------------------------------------------------------------
+
 1 ;
 
 =head1 AUTHOR

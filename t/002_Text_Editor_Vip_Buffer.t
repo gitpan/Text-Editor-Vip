@@ -10,7 +10,7 @@ use Text::Diff ;
 use strict ;
 my ($text, $expected_text) = ('', undef) ;
 
-use Test::More tests => 174 ;
+use Test::More tests => 187 ;
 use Test::Exception ;
 
 BEGIN 
@@ -26,6 +26,7 @@ my $buffer = Text::Editor::Vip::Buffer->new();
 isa_ok($buffer, 'Text::Editor::Vip::Buffer');
 
 is($buffer->GetNumberOfLines(), 1, 'empty line count') ;
+is($buffer->GetLastLineIndex(), 0, 'empty line count') ;
 is($buffer->GetModificationLine(), 0, 'line pos is 0' ) ;
 is($buffer->GetText(), '', 'new buffer is empty' ) ;
 is($buffer->IsBufferMarkedAsEdited(), 0, 'buffer not marked as edited') ;
@@ -48,6 +49,31 @@ my $expected_output = 'Redefined PrintError is working' ;
 $buffer->ExpandWith('PrintError', sub {$redefined_sub_output = $_[1]}) ;
 lives_ok {$buffer->PrintError($expected_output) ;} 'Calling added method' ;
 is($redefined_sub_output , $expected_output, 'Calling added method') ;
+
+dies_ok 
+	{
+	$buffer->ExpandWith() ;
+	} 'Expanding with nothing' ;
+
+dies_ok 
+	{
+	$buffer->ExpandWith('') ;
+	} 'Expanding with unnamed sub' ;
+
+dies_ok 
+	{
+	$buffer->ExpandWith('hi') ;
+	} 'Expanding with unexisting named sub' ;
+
+dies_ok 
+	{
+	$buffer->ExpandWith('hi', 'there') ;
+	} 'Expanding with non sub ref' ;
+
+#~ dies_ok 
+	#~ {
+	#~ $buffer->ExpandWith(''") ;
+	#~ }'' ;
 
 # indenter
 sub my_indenter
@@ -89,6 +115,8 @@ $buffer->SetTabSize(3) ;
 $sub_exists = $buffer->ExpandedWithOrLoad('SetTabSize', 'Text::Editor::Vip::Buffer::Plugins::Display') ;
 is($sub_exists , 1, "sub existed no loading needed") ;
 
+$buffer->PrintExpansionHistory() ;
+
 #------------------------------------------------------------------------------------------------- 
 # Position
 $buffer = Text::Editor::Vip::Buffer->new();
@@ -116,6 +144,26 @@ $buffer->SetModificationPosition(2, 500) ;
 ok($line == 2 && $character == 500, 'position is OK' ) ;
 
 dies_ok {$buffer->SetModificationPosition(10, 0) ;} 'SetModificationPosition died' ;
+
+# offset
+$buffer->SetModificationPosition(0, 0) ;
+
+$buffer->OffsetModificationPosition(2, 2) ;
+($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 2 && $character == 2, 'position is OK' ) ;
+
+$buffer->OffsetModificationPosition(2, 500) ;
+($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 4 && $character == 502, 'position is OK' ) ;
+
+dies_ok {$buffer->OffsetModificationPosition(-1000, 0) ;} 'OffsetModificationPosition died' ;
+
+$buffer->SetModificationPosition(0, 0) ;
+is(0, $buffer->OffsetModificationPositionGuarded(0, -1), 'Guarded OK') ;
+is(0, $buffer->OffsetModificationPositionGuarded(-1000, 10), 'Guarded OK') ;
+
+($line, $character) = $buffer->GetModificationPosition() ;
+ok($line == 0 && $character == 0, 'position unchanged' ) ;
 
 #------------------------------------------------------------------------------------------------- 
 # Attributes
@@ -219,6 +267,7 @@ is(TestDoUndo('$buffer->ClearLine(1) ;', '$buffer->Insert("Line 1\nLine 2") ;'),
 $buffer = Text::Editor::Vip::Buffer->new();
 $buffer->Insert("Line 1\nLine 2\nLine 3\nLine 4") ;
 is($buffer->GetNumberOfLines(), 4, 'right line count before deletion') ;
+is($buffer->GetLastLineIndex(), 3, 'right line index') ;
 
 $buffer->DeleteLine(0) ;
 is($buffer->GetNumberOfLines(), 3, 'right line count after first deletion') ;
@@ -303,6 +352,11 @@ is(TestDoUndo('$buffer->Delete(1) ;', $do_buffer), 1, 'test undo after Delete') 
 
 #----------------------------------------------------------------------------------
 # insert
+$buffer = Text::Editor::Vip::Buffer->new();
+$buffer->Insert("0") ;
+is($buffer->GetText(), "0", "inserting 0") ;
+
+
 $buffer = Text::Editor::Vip::Buffer->new();
 
 $buffer->Insert("bar") ;

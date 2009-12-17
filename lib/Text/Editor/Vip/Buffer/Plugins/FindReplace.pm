@@ -150,10 +150,32 @@ return($match_line, $match_position, $match_word) ;
 
 sub FindOccurenceWithinBoundaries
 {
+
 =head2 FindOccurenceWithinBoundaries
 
 Finds the text matching the B<regex> argument within tha passed boundaries starting at the B<line> and B<character> arguments.
 If no B<line> argument is passed, the modification position is used.
+
+B<Arguments:>
+
+=over 2
+
+=item * search regex, a perl qr or a string
+
+=item * start_line (boundary)
+
+=item * start_character (boundary)
+
+=item * end_line (boundary)
+
+=item * end_character (boundary)
+
+=item * line, where to start looking
+
+=item * character, where to start looking
+
+=back
+
 
 This sub returns an array containing: ($match_line, $match_character, $match_word)
 
@@ -387,9 +409,10 @@ $buffer->FindOccurenceBackwards($buffer->{'Text::Editor::Vip::Buffer::Plugins::F
 
 sub ReplaceOccurenceWithinBoundaries
 {
+
 =head2 ReplaceOccurenceWithinBoundaries
 
-Finds a match for the B<search_regex> argument and replaces it with the B<replacement_regex>. 
+Finds a match for the B<search_regex> argument and replaces it with the B<replacement>. 
 
 B<Arguments:>
 
@@ -397,23 +420,21 @@ B<Arguments:>
 
 =item * search regex, a perl qr or a string
 
-=item * replacement,  Parenthesis can be be used to assign $1, $2, ... those can be used in the B<replacement_regex>.
+=item * replacement, a  regex, a string  or a sub reference (see bellow)
 
-=item * start_line
+=item * start_line (boundary)
 
-=item * start_character
+=item * start_character (boundary)
 
-=item * end_line
+=item * end_line (boundary)
 
-=item * end_character
+=item * end_character (boundary)
 
-=item * line, where to start looking
+=item * line, where to start looking, optional
 
-=item * character, where to start looking
+=item * character, where to start looking, optional
 
 =back
-
-  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'xx$1') ;
 
 If line or character are undefined or invalid, the current modification position is used.
 
@@ -421,6 +442,43 @@ Valid boudaries must be passed to this sub or it will return undef. No replaceme
 within the boudaries.
 
 This sub returns an array containing: ($match_line, $match_position, $match_word, $replacement)
+
+=head3 String replacement
+
+  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'replacement') ;
+
+=head3 Regex replacement
+
+if the replacement is a regex,  parenthesis can be be used to assign $1, $2, ..
+
+  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'xx$1', @boundaries) ;
+  
+=head3 Sub replacement
+
+B<Arguments:>
+
+=over 2
+
+=item * the buffer
+
+=item * matching line
+
+=item * matching character
+
+=item * the match
+
+=back
+
+the sub returns a string which will be be inserted at the matching position.
+
+  sub replacement_sub
+  {
+  my($buffer, $match_line, $match_character, $match_word) = @_ ;
+  
+  join(', ', ref($buffer), $match_line, $match_character, $match_word, "\n") ;
+  }
+  
+  $buffer->ReplaceOccurenceWithinBoundaries('match_this', \&sub_reference, @boundaries)
 
 =cut
 
@@ -435,8 +493,9 @@ my
 unless
 	(
 	(defined $start_line && defined $start_character && defined $end_line && defined $end_character)
-	&& ($start_line > 0 && $start_line < $end_line && $start_character > 0)
+	&& ($start_line >= 0 && $start_line <= $end_line && $start_character >= 0)
 	&& $end_line < $buffer->GetNumberOfLines()
+	&& $end_character >= 0
 	)
 	{
 	$buffer->PrintError("Invalid boundaries passed to ReplaceOccurenceWithinBoundaries") ;
@@ -471,8 +530,8 @@ unless($selection->IsCharacterSelected($line, $character))
 
 if(defined $search_regex && '' ne $search_regex && defined $replacement_regex)
 	{
-	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::SEARCH_REPLACE_REGEX'} = $search_regex ;
-	$buffer->{REPLACEMENT_REGEX} = $replacement_regex ;
+	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::SEARCH_REGEX'} = $search_regex ;
+	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::REPLACEMENT_REGEX'} = $replacement_regex ;
 	
 	my ($match_line, $match_character, $match_word) = $buffer->FindOccurence($search_regex, $line, $character) ;
 	
@@ -482,21 +541,32 @@ if(defined $search_regex && '' ne $search_regex && defined $replacement_regex)
 			{
 			$buffer->SetModificationPosition($match_line, $match_character + length($match_word)) ;
 			$buffer->SetSelectionBoundaries($match_line, $match_character, $match_line, $match_character + length($match_word)) ;
-			$buffer->Delete() ;
 			
 			# perl will display a warning if the replacement is undef
 			# this can happend if '$2' is given as a replacement but nothing matches for it.
 			
 			my $replaced_by = $match_word ;
-			eval "#line " . __LINE__ . "'" . __FILE__ . "'\n\$replaced_by =~ s/$search_regex/$replacement_regex/ ;" ;
+			
+			if('CODE' eq ref $replacement_regex)
+				{
+				eval 
+					{
+					$replaced_by = $replacement_regex->($buffer, $match_line, $match_character, $match_word) ;
+					} ;
+				}
+			else
+				{
+				eval "#line " . __LINE__ . "'" . __FILE__ . "'\n\$replaced_by =~ s/$search_regex/$replacement_regex/ ;" ;
+				}
 			
 			if($@)
 				{
-				$buffer->PrintError("Error in ReplaceOccurence: $@") ;
+				$buffer->PrintError("Error in ReplaceOccurenceWithinBoundaries: $@") ;
 				return(undef, undef, undef) ;
 				}
 			else
 				{
+				$buffer->Delete() ;
 				$buffer->Insert($replaced_by) ;
 				return($match_line, $match_character, $match_word, $replaced_by) ;
 				}
@@ -525,7 +595,7 @@ sub ReplaceOccurence
 
 =head2 ReplaceOccurence
 
-Finds a match for the B<search_regex> argument and replaces it with the B<replacement_regex>. 
+Finds a match for the B<search_regex> argument and replaces it with the B<replacement>. 
 
 B<Arguments:>
 
@@ -533,27 +603,60 @@ B<Arguments:>
 
 =item * search regex, a perl qr or a string
 
-=item * replacement,  Parenthesis can be be used to assign $1, $2, ... those can be used in the B<replacement_regex>.
+=item * replacement,  a regex, string or sub reference
 
-=item * line, where to start looking
+=item * line, where to start looking, optional
 
-=item * character, where to start looking
+=item * character, where to start looking, optional
 
 =back
-
-  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'xx$1') ;
 
 If line or character are undefined or invalid, the current modification position is used.
 
 This sub returns an array containing: ($match_line, $match_position, $match_word, $replacement)
 
+=head3 String replacement
+
+  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'replacement') ;
+
+=head3 Regex replacement
+
+  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'xx$1') ;
+  
+if the replacement is a regex,  parenthesis can be be used to assign $1, $2, ..
+
+  $buffer->ReplaceOccurence(qr/..(n[a-z])/, 'xx$1') ;
+  
+=head3 Sub replacement
+
+B<Arguments:>
+
+=over 2
+
+=item * the buffer
+
+=item * matching line
+
+=item * matching character
+
+=item * the match
+
+=back
+
+the sub returns a string which will be be inserted at the matching position.
+
+  sub replacement_sub
+  {
+  my($buffer, $match_line, $match_character, $match_word) = @_ ;
+  
+  join(', ', ref($buffer), $match_line, $match_character, $match_word, "\n") ;
+  }
+  
+  $buffer->ReplaceOccurenceWithinBoundaries('match_this', \&sub_reference)
+
 =cut
 
-my $buffer            = shift ;
-my $search_regex      = shift ;
-my $replacement_regex = shift ;
-my $line        = shift ;
-my $character   = shift ;
+my ($buffer, $search_regex, $replacement_regex, $line, $character) = @_;
 
 # verify input
 $line = $buffer->GetModificationLine() unless defined $line ;
@@ -570,26 +673,36 @@ $character = $character < 0 ? 0 : $character ;
 my $line_length = $buffer->GetLineLength($line) ;
 $character = $character > $line_length ? $line_length : $character ;
 
-my ($match_line, $match_position, $match_word, $replaced_by) ;
+my ($match_line, $match_character, $match_word, $replaced_by) ;
 
 if(defined $search_regex && '' ne $search_regex && defined $replacement_regex)
 	{
-	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::SEARCH_REPLACE_REGEX'} = $search_regex ;
-	$buffer->{REPLACEMENT_REGEX} = $replacement_regex ;
+	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::SEARCH_REGEX'} = $search_regex ;
+	$buffer->{'Text::Editor::Vip::Buffer::Plugins::FindReplace::REPLACEMENT_REGEX'} = $replacement_regex ;
 	
-	($match_line, $match_position, $match_word) = $buffer->FindOccurence($search_regex, $line, $character) ;
+	($match_line, $match_character, $match_word) = $buffer->FindOccurence($search_regex, $line, $character) ;
 	
 	if(defined $match_line)
 		{
-		$buffer->SetModificationPosition($match_line, $match_position + length($match_word)) ;
-		$buffer->SetSelectionBoundaries($match_line, $match_position, $match_line, $match_position + length($match_word)) ;
-		$buffer->Delete() ;
+		$buffer->SetModificationPosition($match_line, $match_character + length($match_word)) ;
+		$buffer->SetSelectionBoundaries($match_line, $match_character, $match_line, $match_character + length($match_word)) ;
 		
 		# perl will display a warning if the replacement is undef
 		# this can happend if '$2' is given as a replacement but nothing matches for it.
 		
 		$replaced_by = $match_word ;
-		eval "#line " . __LINE__ . "'" . __FILE__ . "'\n\$replaced_by =~ s/$search_regex/$replacement_regex/ ;" ;
+		
+		if('CODE' eq ref $replacement_regex)
+			{
+			eval 
+				{
+				$replaced_by = $replacement_regex->($buffer, $match_line, $match_character, $match_word) ;
+				} ;
+			}
+		else
+			{
+			eval "#line " . __LINE__ . "'" . __FILE__ . "'\n\$replaced_by =~ s/$search_regex/$replacement_regex/ ;" ;
+			}
 		
 		if($@)
 			{
@@ -598,12 +711,13 @@ if(defined $search_regex && '' ne $search_regex && defined $replacement_regex)
 			}
 		else
 			{
+			$buffer->Delete() ;
 			$buffer->Insert($replaced_by) ;
 			}
 		}
 	}
 
-return($match_line, $match_position, $match_word, $replaced_by) ;
+return($match_line, $match_character, $match_word, $replaced_by) ;
 }
 
 #-------------------------------------------------------------------------------

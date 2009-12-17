@@ -115,7 +115,7 @@ $buffer->PushUndoStep
 		, "\$buffer->SetSelectionBoundaries($selection_start_line, $selection_start_character, $selection_end_line, $selection_end_character) ;"
 		) ;
 
-$buffer->{SELECTION}->Set(@_) ;
+$buffer->{SELECTION}->Set
 	(
 	  $new_selection_start_line, $new_selection_start_character
 	, $new_selection_end_line, $new_selection_end_character
@@ -220,6 +220,8 @@ unless($buffer->{SELECTION}->IsEmpty())
 	{
 	my $undo_block = new Text::Editor::Vip::CommandBlock($buffer, '# $buffer->RunSubOnSelection() ;', '    ', '# undo for $buffer->DeleteSeletion()', '   ') ;
 	
+	$buffer->BoxSelection() ;
+	
 	my 
 		(
 		  $selection_start_line, $selection_start_character
@@ -287,28 +289,33 @@ unless($buffer->{SELECTION}->IsEmpty())
 		# the sub has access to the line before we modify it
 		my $new_text = $function->($text, $selection_line_index, $modification_character, $original_selection, $buffer) ;
 		
-		$buffer->SetModificationPosition($selection_line_index, $modification_character) ;
-		$buffer->Delete(length($text)) ;
+		# we should avoid unecessary modification if the text is the same
+		#~ if(length($new_text) != length($text) || $new_text ne $text)
 		
-		if(defined $new_text)
 			{
-			$buffer->Insert($new_text) ;
-			}
-		else
-			{
-			if($selection_line_index == $selection_start_line)
+			$buffer->SetModificationPosition($selection_line_index, $modification_character) ;
+			$buffer->Delete(length($text)) ;
+			
+			if(defined $new_text)
 				{
-				$wrap_first_line++ ;
+				$buffer->Insert($new_text) ;
 				}
-				
-			# deleted lines are not taken away before all lines are processed
-			
-			#~ print "$selection_line_index == $selection_end_line && $selection_end_character\n" ;
-			
-			if($whole_line_selected)
+			else
 				{
-				# last line is never deleted
-				push @lines_to_delete, $selection_line_index unless ($selection_line_index == $selection_end_line) ;
+				if($selection_line_index == $selection_start_line)
+					{
+					$wrap_first_line++ ;
+					}
+					
+				# deleted lines are not taken away before all lines are processed
+				
+				#~ print "$selection_line_index == $selection_end_line && $selection_end_character\n" ;
+				
+				if($whole_line_selected)
+					{
+					# last line is never deleted
+					push @lines_to_delete, $selection_line_index unless ($selection_line_index == $selection_end_line) ;
+					}
 				}
 			}
 		}
@@ -330,6 +337,49 @@ unless($buffer->{SELECTION}->IsEmpty())
 else
 	{
 	$error_sub_ref->("No Selection!") ;
+	}
+}
+
+#-------------------------------------------------------------------------------
+
+sub BoxSelection
+{
+
+=head2 BoxSelection
+
+Puts the selection boundaries within the buffer boundaries and returns the new selection boundaries.
+
+Doesn't change the selection if it is empty. See L<SelectAll>.
+
+=cut
+
+my $buffer = shift ;
+
+unless($buffer->{SELECTION}->IsEmpty())
+	{
+	my ($selection_start_line, $selection_start_character
+	, $selection_end_line, $selection_end_character
+	) = $buffer->GetSelectionBoundaries() ;
+	
+	my $number_of_lines = $buffer->GetNumberOfLines() ;
+	
+	$selection_start_line = $selection_start_line >=  $number_of_lines ? ($number_of_lines - 1): $selection_start_line ;
+	$selection_start_line = 0 if $selection_start_line < 0 ;
+	
+	$selection_start_character = 0 if $selection_start_character < 0 ;
+	
+	$selection_end_line = $selection_end_line >= $number_of_lines ? ($number_of_lines - 1) : $selection_end_line ;
+	$selection_end_line = 0 if $selection_end_line < 0 ;
+	
+	$selection_end_character = 0 if $selection_end_character < 0 ;
+	
+	$buffer->{SELECTION}->Set
+				(
+				  $selection_start_line, $selection_start_character
+				, $selection_end_line, $selection_end_character
+				) ;
+				
+	return($buffer->GetSelectionBoundaries()) ;
 	}
 }
 

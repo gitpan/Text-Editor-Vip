@@ -182,8 +182,8 @@ eq_or_diff([1, 100, 2, 50], [$buffer->GetSelection()->GetBoundaries()], 'GetSele
 $buffer->GetSelection()->Set(3, 1, 10, 4) ;
 is($buffer->GetText(), $text, 'GetSelectionText still the same') ;
 
-dies_ok {$buffer->GetSelectionText() ;} '$buffer->GetSelectionText() method dies with bad selection' ;
-eq_or_diff([-1, -1, -1, -1], [$buffer->GetSelection()->GetBoundaries()], 'GetSelectionText selection reset after error') ;
+is($buffer->GetSelectionText(), "ine 4 - 4 4 4 4\nline 5 - 5 5 5 5 5\n", '$buffer->GetSelectionText() handles bad selection') ;
+eq_or_diff([$buffer->GetSelection()->GetBoundaries()], [3, 1, 5, 4], 'Boxed selection') ;
 
 # selection is not reset on undo
 

@@ -3,6 +3,7 @@
 use Data::TreeDumper ;
 use Data::Hexdumper ;
 use Text::Diff ;
+use Test::Differences ;
 
 use strict ;
 use warnings ;
@@ -271,11 +272,11 @@ is_deeply([$buffer->GetModificationPosition()], [1, 0], 'InsertTab') ;
 
 $buffer->SetModificationPosition(0, 0) ;
 $buffer->SetSelectionBoundaries(4, 0, 6, 0) ;
-dies_ok {$buffer->InsertTab() ;} 'InsertTab in non existing line' ;
-is_deeply([$buffer->GetSelectionBoundaries()] ,[-1, -1, -1, -1], 'Selection OK') ;
+lives_ok {$buffer->InsertTab() ;} 'InsertTab in non existing line' ;
+eq_or_diff([$buffer->GetSelection()->GetBoundaries()], [4, 0, 5, 0], 'Boxed selection') ;
 
 is($buffer->GetLineText(4), "\tline 5 - 5 5 5 5 5", 'InsertTab') ;
-is($buffer->GetLineText(5), "\t", 'InsertTab') ;
+is($buffer->GetLineText(5), '', 'InsertTab') ;
 
 #RemoveTabFromSelection
 # ------------------------

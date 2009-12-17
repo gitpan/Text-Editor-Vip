@@ -161,49 +161,6 @@ unless($buffer->{SELECTION}->IsEmpty())
 
 #-------------------------------------------------------------------------------
 
-sub BoxSelection
-{
-
-=head2 BoxSelection
-
-Puts the selection boundaries within the buffer boundaries and returns the new selection boundaries.
-
-Doesn't change the selection if it is empty. See L<SelectAll>.
-
-=cut
-
-my $buffer = shift ;
-
-unless($buffer->{SELECTION}->IsEmpty())
-	{
-	my ($selection_start_line, $selection_start_character
-	, $selection_end_line, $selection_end_character
-	) = $buffer->GetSelectionBoundaries() ;
-	
-	my $number_of_lines = $buffer->GetNumberOfLines() ;
-	
-	$selection_start_line = $selection_start_line >=  $number_of_lines ? ($number_of_lines - 1): $selection_start_line ;
-	$selection_start_line = 0 if $selection_start_line < 0 ;
-	
-	$selection_start_character = 0 if $selection_start_character < 0 ;
-	
-	$selection_end_line = $selection_end_line >= $number_of_lines ? ($number_of_lines - 1) : $selection_end_line ;
-	$selection_end_line = 0 if $selection_end_line < 0 ;
-	
-	$selection_end_character = 0 if $selection_end_character < 0 ;
-	
-	$buffer->{SELECTION}->Set
-				(
-				  $selection_start_line, $selection_start_character
-				, $selection_end_line, $selection_end_character
-				) ;
-				
-	return($buffer->GetSelectionBoundaries()) ;
-	}
-}
-
-#-------------------------------------------------------------------------------
-
 sub MoveToEndOfLineNoSelectionClear
 {
 
